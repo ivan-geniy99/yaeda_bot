@@ -7,19 +7,8 @@ import base64
 import os
 
 b64_key = os.environ.get("GOOGLE_CRED_JSON_IN_BASE_64")
-if not b64_key:
-    raise ValueError("Переменная окружения пуста!")
-print(f"Длина переменной окружения: {len(b64_key)}")
-print(f"Первые 50 символов: {b64_key[:50]}")
-try:
-    json_key = base64.b64decode(b64_key).decode("utf-8")
-except Exception as e:
-    raise ValueError("Не удалось декодировать base64") from e
-
-try:
-    key_dict = json.loads(json_key)
-except json.JSONDecodeError as e:
-    raise ValueError("JSON из ключа битый или некорректный") from e
+decoded_json = base64.b64decode(b64_key).decode("utf-8")
+key_dict = json.loads(decoded_json)
 
 # ✅ Добавляем нужные права
 scopes = [
