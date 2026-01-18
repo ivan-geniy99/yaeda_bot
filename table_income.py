@@ -23,6 +23,8 @@ client = gspread.authorize(creds)
 
 # === 6. КЭШ ===
 average_income_ya_eda = []
+def get_average_income():
+    return average_income_ya_eda
 
 # Функция обновления данных
 def update_income():

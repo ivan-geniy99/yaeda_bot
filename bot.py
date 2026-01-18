@@ -8,7 +8,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import uvicorn
-from table_income import average_income_ya_eda
+from table_income import get_average_income
 import re
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
@@ -80,9 +80,8 @@ async def city_question(message: types.Message, state: FSMContext):
 
     # Ищем совпадения в кэше
     matched_records = [
-        record for record in average_income_ya_eda
-        if re.fullmatch(user_city_lower, record["city"].lower())
-    ]
+    record for record in get_average_income()
+    if re.fullmatch(user_city_lower, record["city"].lower())]
 
     if matched_records:
         # Если есть совпадения, выводим информацию
