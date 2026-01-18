@@ -74,29 +74,53 @@ async def age_question(message: types.Message, state: FSMContext):
 @dp.message(Form.waiting_for_city)
 async def city_question(message: types.Message, state: FSMContext):
     user_city = message.text.strip()
-
-    # Приведение к регистру для поиска (если нужно)
     user_city_lower = user_city.lower()
 
-    # Ищем совпадения в кэше
+    records = get_average_income()
+
     matched_records = [
-    record for record in get_average_income()
-    if re.fullmatch(user_city_lower, record["city"].lower())]
+        r for r in records
+        if r["city"].lower() == user_city_lower
+    ]
 
+    # 1. Город найден
     if matched_records:
-        # Если есть совпадения, выводим информацию
-        response_lines = [f"{r['delivery']}: среднее {r['month_avg']}, макс {r['month_max']}" for r in matched_records]
-        response_text = f"Город: {user_city}\nНайдено {len(matched_records)} вариантов доставки:\n" + "\n".join(response_lines)
-    else:
-        # Если город не найден в кэше
-        response_text = f"Город {user_city} не найден в нашей базе доходов."
+        response_lines = [
+            f"{r['delivery']}: среднее {r['month_avg']}, макс {r['month_max']}"
+            for r in matched_records
+        ]
+        response_text = (
+            f"Город: {user_city}\n"
+            f"Найдено {len(matched_records)} вариантов доставки:\n"
+            + "\n".join(response_lines)
+        )
+        await message.answer(response_text, reply_markup=types.ReplyKeyboardRemove())
+        await state.clear()
+        return
 
-    await message.answer(
-        response_text,
-        reply_markup=types.ReplyKeyboardRemove()
+    # 2. Пользователь нажал кнопку «Показать весь список городов📋»
+    if user_city == "Показать весь список городов📋":
+        cities = sorted({r["city"] for r in records})
+        response_text = (
+            "📍 Доступные города:\n\n"
+            + ", ".join(cities)
+            + "\n\n✍️ Скопируйте нужный город и отправьте его сообщением"
+        )
+        await message.answer(response_text, reply_markup=types.ReplyKeyboardRemove())
+        return
+
+    # 3. Город не найден
+    response_text = (
+        f"Я не смог найти город «{user_city}».\n\n"
+        "Попробуйте написать ещё раз или откройте список городов 👇"
     )
-    await state.clear()
+    reply_markup = ReplyKeyboardMarkup(
+        keyboard=[[KeyboardButton(text="Показать весь список городов📋")]],
+        resize_keyboard=True
+    )
 
+    await message.answer(response_text, reply_markup=reply_markup)
+    
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     await bot.set_webhook(f"{WEBHOOK_URL}/{BOT_TOKEN}")
