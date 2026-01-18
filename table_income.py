@@ -10,7 +10,7 @@ import os
 b64_key = os.environ["GOOGLE_CRED_JSON_IN_BASE_64"]
 
 # === 2. Декодируем base64 → JSON строка ===
-json_key = base64.b64decode(b64_key).decode("utf-8")
+json_key = base64.b64decode(b64_key).decode("utf-8").replace("\r\n", "\n").replace("\n", "\\n")
 
 # === 3. Парсим JSON ===
 key_dict = json.loads(json_key)
