@@ -6,14 +6,19 @@ import time
 import base64
 import os
 
-# === 1. Забираем base64 из переменной окружения ===
-b64_key = os.environ["GOOGLE_CRED_JSON_IN_BASE_64"]
+b64_key = os.environ.get("GOOGLE_CRED_JSON_IN_BASE_64")
+if not b64_key:
+    raise ValueError("Переменная окружения пуста!")
 
-# === 2. Декодируем base64 → JSON строка ===
-json_key = base64.b64decode(b64_key).decode("utf-8").replace("\r\n", "\n").replace("\n", "\\n")
+try:
+    json_key = base64.b64decode(b64_key).decode("utf-8")
+except Exception as e:
+    raise ValueError("Не удалось декодировать base64") from e
 
-# === 3. Парсим JSON ===
-key_dict = json.loads(json_key)
+try:
+    key_dict = json.loads(json_key)
+except json.JSONDecodeError as e:
+    raise ValueError("JSON из ключа битый или некорректный") from e
 
 # ✅ Добавляем нужные права
 scopes = [
