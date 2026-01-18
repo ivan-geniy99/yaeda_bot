@@ -9,7 +9,8 @@ import os
 b64_key = os.environ.get("GOOGLE_CRED_JSON_IN_BASE_64")
 if not b64_key:
     raise ValueError("Переменная окружения пуста!")
-
+print(f"Длина переменной окружения: {len(b64_key)}")
+print(f"Первые 50 символов: {b64_key[:50]}")
 try:
     json_key = base64.b64decode(b64_key).decode("utf-8")
 except Exception as e:
