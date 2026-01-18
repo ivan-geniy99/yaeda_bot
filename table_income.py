@@ -7,6 +7,7 @@ import base64
 import os
 
 b64_key = os.environ.get("GOOGLE_CRED_JSON_IN_BASE_64")
+print(b64_key)
 decoded_json = base64.b64decode(b64_key).decode("utf-8")
 key_dict = json.loads(decoded_json)
 
