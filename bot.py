@@ -37,6 +37,13 @@ yes_no_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
+#Клавиатура "Показать весь список городов"
+city_keyboard = ReplyKeyboardMarkup(
+    keyboard=[[KeyboardButton(text="Показать весь список городов📋")]],
+    resize_keyboard=True
+)
+
+
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message, state: FSMContext):
     await message.answer(
@@ -58,8 +65,9 @@ async def first_question(message: types.Message, state: FSMContext):
 async def age_question(message: types.Message, state: FSMContext):
     if message.text == "Да✅":
         await message.answer(
-            "Вопрос 2\n\nВ каком городе желаете работать?",
-            reply_markup=types.ReplyKeyboardRemove()
+            "Вопрос 2\n\nВ каком городе желаете работать?\n\n"
+            "Вы можете написать город вручную или открыть список 👇",
+            reply_markup=city_keyboard
         )
         await state.set_state(Form.waiting_for_city)
 
