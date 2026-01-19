@@ -10,6 +10,7 @@ from aiogram.fsm.context import FSMContext
 import uvicorn
 from table_income import get_average_income
 import re
+from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_URL = os.environ["WEBHOOK_URL"]
@@ -22,7 +23,7 @@ class Form(StatesGroup):
     waiting_for_first_question = State()
     waiting_for_age_question = State()
     waiting_for_city = State()
-
+    waiting_for_citizenship = State()  # ← новое
 # Клавиатура "Хорошо, поехали"
 next_keyboard = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="Хорошо, поехали✅")]],
@@ -43,6 +44,17 @@ city_keyboard = ReplyKeyboardMarkup(
     resize_keyboard=True
 )
 
+#Инлайн кнопки с гражданством
+citizenship_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="🇷🇺 Россия", callback_data="citizenship_ru")],
+        [InlineKeyboardButton(text="🇧🇾 Беларусь", callback_data="citizenship_by")],
+        [InlineKeyboardButton(text="🇰🇿 Казахстан", callback_data="citizenship_kz")],
+        [InlineKeyboardButton(text="🇦🇲 Армения", callback_data="citizenship_am")],
+        [InlineKeyboardButton(text="🇰🇬 Кыргызстан", callback_data="citizenship_kg")],
+        [InlineKeyboardButton(text="Другое", callback_data="citizenship_other")]
+    ]
+)
 
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message, state: FSMContext):
@@ -93,18 +105,14 @@ async def city_question(message: types.Message, state: FSMContext):
 
     # 1. Город найден
     if matched_records:
-        response_lines = [
-            f"{r['delivery']}: среднее {r['month_avg']}, макс {r['month_max']}"
-            for r in matched_records
-        ]
-        response_text = (
-            f"Город: {user_city}\n"
-            f"Найдено {len(matched_records)} вариантов доставки:\n"
-            + "\n".join(response_lines)
+        await state.update_data(city=user_city)
+
+        await message.answer(
+            "Вопрос 3 из 3\n\nКакое у вас гражданство?",
+            reply_markup=citizenship_keyboard
         )
-        await message.answer(response_text, reply_markup=types.ReplyKeyboardRemove())
-        await state.clear()
-        return
+        await state.set_state(Form.waiting_for_citizenship)
+        return       
 
     # 2. Пользователь нажал кнопку «Показать весь список городов📋»
     if user_city == "Показать весь список городов📋":
@@ -137,6 +145,52 @@ async def lifespan(app: FastAPI):
 
 app = FastAPI(lifespan=lifespan)
 
+@dp.callback_query(Form.waiting_for_citizenship)
+async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
+    citizenship_map = {
+        "citizenship_ru": "Россия",
+        "citizenship_by": "Беларусь",
+        "citizenship_kz": "Казахстан",
+        "citizenship_am": "Армения",
+        "citizenship_kg": "Кыргызстан",
+    }
+
+    citizenship = citizenship_map.get(callback.data)
+
+    if not citizenship:
+        await callback.answer()
+        return
+
+    data = await state.get_data()
+    user_city = data.get("city")
+
+    records = get_average_income()
+
+    matched_records = [
+        r for r in records
+        if r["city"].lower() == user_city.lower()
+    ]
+
+    response_lines = [
+        f"{r['delivery']}: среднее {r['month_avg']}, макс {r['month_max']}"
+        for r in matched_records
+    ]
+
+    response_text = (
+        f"Город: {user_city}\n"
+        f"Гражданство: {citizenship}\n\n"
+        f"Найдено {len(matched_records)} вариантов доставки:\n"
+        + "\n".join(response_lines)
+    )
+
+    await callback.message.answer(
+        response_text,
+        reply_markup=types.ReplyKeyboardRemove()
+    )
+
+    await callback.answer()
+    await state.clear()
+    
 @app.post(f"/{BOT_TOKEN}")
 async def telegram_webhook(req: Request):
     update = Update.model_validate(await req.json())
