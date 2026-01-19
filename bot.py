@@ -18,9 +18,9 @@ bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
 DELIVERY_TITLES = {
-    "foot": "Пешком",
-    "bike": "Вело",
-    "car": "Авто",
+    "foot": "🧍 Пешком",
+    "bike": "🚲 Вело",
+    "car": "🚗 Авто",
 }
 
 DAILY_PAYOUT_CITIZENSHIPS = {
@@ -187,7 +187,8 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
         return
 
     await state.update_data(citizenship=citizenship)
-
+    # убрать инлайн-кнопки у предыдущего сообщения
+    await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
         "Остался последний вопрос — и покажу доход\nКакой формат доставки вам подходит?",
         reply_markup=delivery_type_keyboard
@@ -238,15 +239,15 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
 
     response_text = (
     f"📍 Доход курьера в городе: {user_city}\n"
-    f"🚚 Формат: {DELIVERY_TITLES[delivery_type]}\n\n"
+    f"📍 Формат: {DELIVERY_TITLES[delivery_type]}\n\n"
     f"💰 Доход:\n"
-    f"Средний в день — {r['day']}\n"
-    f"Средний в месяц — {r['month_avg']}\n"
-    f"Максимум в месяц — {r['month_max']}\n\n"
+    f"Средний в день — {r['day']} ₽\n"
+    f"Средний в месяц — {r['month_avg']} ₽\n"
+    f"Максимум в месяц — {r['month_max']} ₽\n\n"
     f"{payout_text}\n"
     f"{legal_text}\n"
 )
-
+    await callback.message.edit_reply_markup(reply_markup=None)  # убираем кнопки
     await callback.message.answer(
         response_text,
         reply_markup=types.ReplyKeyboardRemove()
