@@ -9,7 +9,6 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import uvicorn
 from table_income import get_average_income
-import re
 from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
@@ -18,12 +17,22 @@ WEBHOOK_URL = os.environ["WEBHOOK_URL"]
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
+DAILY_PAYOUT_CITIZENSHIPS = {
+    "Россия",
+    "Беларусь",
+    "Казахстан",
+    "Армения",
+    "Кыргызстан",
+}
+
 # FSM
 class Form(StatesGroup):
     waiting_for_first_question = State()
     waiting_for_age_question = State()
     waiting_for_city = State()
-    waiting_for_citizenship = State()  # ← новое
+    waiting_for_citizenship = State()  
+    waiting_for_delivery_type = State()
+
 # Клавиатура "Хорошо, поехали"
 next_keyboard = ReplyKeyboardMarkup(
     keyboard=[[KeyboardButton(text="Хорошо, поехали✅")]],
@@ -56,10 +65,19 @@ citizenship_keyboard = InlineKeyboardMarkup(
     ]
 )
 
+#Инлайн кнопки с типом доставки
+delivery_type_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="🧍 Пешком", callback_data="delivery_walk")],
+        [InlineKeyboardButton(text="🚲 Вело", callback_data="delivery_bike")],
+        [InlineKeyboardButton(text="🚗 Авто", callback_data="delivery_car")],
+    ]
+)
+
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message, state: FSMContext):
     await message.answer(
-        "Чтобы показать условия — ответьте на 3 вопроса.",
+        "Чтобы показать условия и доход — задам несколько коротких вопросов 👌",
         reply_markup=next_keyboard
     )
     await state.set_state(Form.waiting_for_first_question)
@@ -68,7 +86,7 @@ async def cmd_start(message: types.Message, state: FSMContext):
 async def first_question(message: types.Message, state: FSMContext):
     if message.text == "Хорошо, поехали✅":
         await message.answer(
-            "Вопрос 1\n\nВам есть 18 лет?",
+            "Вам есть 18 лет?",
             reply_markup=yes_no_keyboard
         )
         await state.set_state(Form.waiting_for_age_question)
@@ -77,8 +95,8 @@ async def first_question(message: types.Message, state: FSMContext):
 async def age_question(message: types.Message, state: FSMContext):
     if message.text == "Да✅":
         await message.answer(
-            "Вопрос 2\n\nВ каком городе желаете работать?\n\n"
-            "Вы можете написать город вручную или открыть список 👇",
+            "В каком городе вы планируете выполнять доставки?\n\n"
+            "Напишите город или откройте список 👇",
             reply_markup=city_keyboard
         )
         await state.set_state(Form.waiting_for_city)
@@ -108,7 +126,7 @@ async def city_question(message: types.Message, state: FSMContext):
         await state.update_data(city=user_city)
 
         await message.answer(
-            "Вопрос 3 из 3\n\nКакое у вас гражданство?",
+            "Какое у вас гражданство?",
             reply_markup=citizenship_keyboard
         )
         await state.set_state(Form.waiting_for_citizenship)
@@ -153,6 +171,7 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
         "citizenship_kz": "Казахстан",
         "citizenship_am": "Армения",
         "citizenship_kg": "Кыргызстан",
+        "citizenship_other": "Другое",
     }
 
     citizenship = citizenship_map.get(callback.data)
@@ -161,27 +180,66 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
+    await state.update_data(citizenship=citizenship)
+
+    await callback.message.answer(
+        "Остался последний вопрос — и покажу доход\nКакой формат доставки вам подходит?",
+        reply_markup=delivery_type_keyboard
+    )
+
+    await state.set_state(Form.waiting_for_delivery_type)
+    await callback.answer()
+
+@dp.callback_query(Form.waiting_for_delivery_type)
+async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext):
+    delivery_map = {
+        "delivery_walk": "Пешком",
+        "delivery_bike": "Вело",
+        "delivery_car": "Авто",
+    }
+
+    delivery_type = delivery_map.get(callback.data)
+
+    if not delivery_type:
+        await callback.answer()
+        return
+
     data = await state.get_data()
     user_city = data.get("city")
-
+    citizenship = data.get("citizenship")
+    if citizenship in DAILY_PAYOUT_CITIZENSHIPS:
+        payout_text = "Выплаты: ежедневные"
+        legal_text = "Оформление через партнёра сервиса - самозанятость"
+    else:
+        payout_text = "Выплаты: еженедельные"
+        legal_text = "Оформление по договору через партнёра сервиса"    
     records = get_average_income()
 
     matched_records = [
         r for r in records
         if r["city"].lower() == user_city.lower()
+        and r["delivery"].lower() == delivery_type.lower()
     ]
 
-    response_lines = [
-        f"{r['delivery']}: среднее {r['month_avg']}, макс {r['month_max']}"
-        for r in matched_records
-    ]
+    if not matched_records:
+        await callback.message.answer(
+            "К сожалению, по выбранному формату нет данных 😔"
+        )
+        await state.clear()
+        return
+
+    r = matched_records[0]
 
     response_text = (
-        f"Город: {user_city}\n"
-        f"Гражданство: {citizenship}\n\n"
-        f"Найдено {len(matched_records)} вариантов доставки:\n"
-        + "\n".join(response_lines)
-    )
+    f"📍 Доход курьера в городе: {user_city}\n"
+    f"🚚 Формат: {delivery_type}\n\n"
+    f"💰 Доход:\n"
+    f"Средний в день — {r['day']}\n"
+    f"Средний в месяц — {r['month_avg']}\n"
+    f"Максимум в месяц — {r['month_max']}\n\n"
+    f"{payout_text}\n"
+    f"{legal_text}\n"
+)
 
     await callback.message.answer(
         response_text,
@@ -190,7 +248,7 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
 
     await callback.answer()
     await state.clear()
-    
+
 @app.post(f"/{BOT_TOKEN}")
 async def telegram_webhook(req: Request):
     update = Update.model_validate(await req.json())
