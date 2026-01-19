@@ -17,6 +17,12 @@ WEBHOOK_URL = os.environ["WEBHOOK_URL"]
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
+DELIVERY_TITLES = {
+    "foot": "Пешком",
+    "bike": "Вело",
+    "car": "Авто",
+}
+
 DAILY_PAYOUT_CITIZENSHIPS = {
     "Россия",
     "Беларусь",
@@ -193,9 +199,9 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
 @dp.callback_query(Form.waiting_for_delivery_type)
 async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext):
     delivery_map = {
-        "delivery_walk": "Пешком",
-        "delivery_bike": "Вело",
-        "delivery_car": "Авто",
+        "delivery_walk": "foot",
+        "delivery_bike": "bike",
+        "delivery_car": "car",
     }
 
     delivery_type = delivery_map.get(callback.data)
@@ -216,9 +222,9 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
     records = get_average_income()
 
     matched_records = [
-        r for r in records
-        if r["city"].lower() == user_city.lower()
-        and r["delivery"].lower() == delivery_type.lower()
+    r for r in records
+    if r["city"].lower() == user_city.lower()
+    and r["delivery"] == delivery_type
     ]
 
     if not matched_records:
@@ -232,7 +238,7 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
 
     response_text = (
     f"📍 Доход курьера в городе: {user_city}\n"
-    f"🚚 Формат: {delivery_type}\n\n"
+    f"🚚 Формат: {DELIVERY_TITLES[delivery_type]}\n\n"
     f"💰 Доход:\n"
     f"Средний в день — {r['day']}\n"
     f"Средний в месяц — {r['month_avg']}\n"
