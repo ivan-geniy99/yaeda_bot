@@ -31,6 +31,15 @@ DAILY_PAYOUT_CITIZENSHIPS = {
     "Кыргызстан",
 }
 
+CITIZENSHIP_TYPE_MAP = {
+    "Россия": "rf",
+    "Беларусь": "eaes",
+    "Казахстан": "eaes",
+    "Армения": "eaes",
+    "Кыргызстан": "eaes",
+    "Другое": "not_rf",
+}
+
 # FSM
 class Form(StatesGroup):
     waiting_for_first_question = State()
@@ -206,7 +215,6 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
     }
 
     delivery_type = delivery_map.get(callback.data)
-
     if not delivery_type:
         await callback.answer()
         return
@@ -214,18 +222,54 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
     data = await state.get_data()
     user_city = data.get("city")
     citizenship = data.get("citizenship")
-    if citizenship in DAILY_PAYOUT_CITIZENSHIPS:
-        payout_text = "Выплаты: ежедневные"
-        legal_text = "Оформление через партнёра сервиса - самозанятость"
-    else:
-        payout_text = "Выплаты: еженедельные"
-        legal_text = "Оформление по договору через партнёра сервиса"    
+
+    citizenship_type = CITIZENSHIP_TYPE_MAP.get(citizenship)
+
     records = get_average_income()
 
+    # 🔹 Все записи по городу (не по формату!)
+    city_records = [
+        r for r in records
+        if r["city"].lower() == user_city.lower()
+    ]
+
+    if not city_records:
+        await callback.message.answer(
+            "К сожалению, по этому городу нет данных 😔"
+        )
+        await state.clear()
+        return
+
+    # ===============================
+    # 🔥 ПРОВЕРКА ГРАЖДАНСТВА
+    # ===============================
+
+    if citizenship_type == "eaes":
+        if city_records[0].get("eaes") != "TRUE":
+            await callback.message.answer(
+                "❌ В выбранном городе временно нет найма для граждан ЕАЭС.\n\n"
+                "Попробуйте выбрать другой город."
+            )
+            await state.clear()
+            return
+
+    if citizenship_type == "not_rf":
+        if city_records[0].get("not_rf") != "TRUE":
+            await callback.message.answer(
+                "❌ В выбранном городе временно нет найма для иностранных граждан.\n\n"
+                "Попробуйте выбрать другой город."
+            )
+            await state.clear()
+            return
+
+    # ===============================
+    # 🔹 ДАЛЬШЕ — ПОИСК ДОХОДА
+    # ===============================
+
     matched_records = [
-    r for r in records
-    if r["city"].lower() == user_city.lower()
-    and r["delivery"] == delivery_type
+        r for r in records
+        if r["city"].lower() == user_city.lower()
+        and r["delivery"] == delivery_type
     ]
 
     if not matched_records:
@@ -237,17 +281,29 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
 
     r = matched_records[0]
 
+    # ===============================
+    # 🔹 ТЕКСТЫ ВЫПЛАТ
+    # ===============================
+
+    if citizenship in DAILY_PAYOUT_CITIZENSHIPS:
+        payout_text = "Выплаты: ежедневные"
+        legal_text = "Оформление через партнёра сервиса — самозанятость"
+    else:
+        payout_text = "Выплаты: еженедельные"
+        legal_text = "Оформление по договору через партнёра сервиса"
+
     response_text = (
-    f"📍 Доход курьера в городе: {user_city}\n"
-    f"📍 Формат: {DELIVERY_TITLES[delivery_type]}\n\n"
-    f"💰 Доход:\n"
-    f"Средний в день — {r['day']} ₽\n"
-    f"Средний в месяц — {r['month_avg']} ₽\n"
-    f"Максимум в месяц — {r['month_max']} ₽\n\n"
-    f"{payout_text}\n"
-    f"{legal_text}\n"
-)
-    await callback.message.edit_reply_markup(reply_markup=None)  # убираем кнопки
+        f"📍 Доход курьера в городе: {user_city}\n"
+        f"📍 Формат: {DELIVERY_TITLES[delivery_type]}\n\n"
+        f"💰 Доход:\n"
+        f"Средний в день — {r['day']} ₽\n"
+        f"Средний в месяц — {r['month_avg']} ₽\n"
+        f"Максимум в месяц — {r['month_max']} ₽\n\n"
+        f"{payout_text}\n"
+        f"{legal_text}\n"
+    )
+
+    await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
         response_text,
         reply_markup=types.ReplyKeyboardRemove()
