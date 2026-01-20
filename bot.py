@@ -100,10 +100,11 @@ async def cmd_start(message: types.Message, state: FSMContext):
     )
     await state.set_state(Form.waiting_for_first_question)
 
-@dp.callback_query()
+# ===============================
+# CALLBACK: "Хорошо, поехали"
+# ===============================
+@dp.callback_query(lambda c: c.data == "next_start")
 async def start_next(callback: types.CallbackQuery, state: FSMContext):
-    if callback.data != "next_start":
-        return
     await callback.message.edit_text(
         "Вам есть 18 лет?",
         reply_markup=yes_no_inline_keyboard
@@ -112,13 +113,10 @@ async def start_next(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 # ===============================
-# ВОЗРАСТ
+# CALLBACK: Возраст "Да/Нет"
 # ===============================
-@dp.callback_query()
+@dp.callback_query(lambda c: c.data in ["age_yes", "age_no"])
 async def age_answer(callback: types.CallbackQuery, state: FSMContext):
-    if callback.data not in ["age_yes", "age_no"]:
-        return
-
     if callback.data == "age_yes":
         await callback.message.edit_text(
             "В каком городе вы планируете выполнять доставки?\n\n"
@@ -128,8 +126,7 @@ async def age_answer(callback: types.CallbackQuery, state: FSMContext):
             )
         )
         await state.set_state(Form.waiting_for_city)
-
-    elif callback.data == "age_no":
+    else:  # age_no
         await callback.message.edit_text(
             "Если вам есть 16 лет, то можно откликнуться на вакансию по ссылке:\n"
             "https://example.com",
@@ -142,7 +139,7 @@ async def age_answer(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 # ===============================
-# ГОРОД
+# MESSAGE: Ввод города
 # ===============================
 @dp.message(Form.waiting_for_city)
 async def city_question(message: types.Message, state: FSMContext):
@@ -179,7 +176,7 @@ async def city_question(message: types.Message, state: FSMContext):
     await message.answer(response_text, reply_markup=city_list_inline_keyboard)
 
 # ===============================
-# ГРАЖДАНСТВО
+# CALLBACK: Гражданство
 # ===============================
 @dp.callback_query(Form.waiting_for_citizenship)
 async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
@@ -209,7 +206,7 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    # Найм проверка
+    # Проверка найма
     if (citizenship_type == "eaes" and city_records[0].get("eaes") != "TRUE") or \
        (citizenship_type == "not_rf" and city_records[0].get("not_rf") != "TRUE"):
         await callback.message.answer(
@@ -232,9 +229,9 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 # ===============================
-# НАЗАД
+# CALLBACK: Назад
 # ===============================
-@dp.callback_query()
+@dp.callback_query(lambda c: c.data in ["back_to_age_question", "back_to_city_question", "back_to_citizenship_question"])
 async def go_back(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == "back_to_age_question":
         await callback.message.edit_text(
@@ -261,7 +258,7 @@ async def go_back(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 # ===============================
-# ФОРМАТ ДОСТАВКИ
+# CALLBACK: Формат доставки
 # ===============================
 @dp.callback_query(Form.waiting_for_delivery_type)
 async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext):
@@ -278,9 +275,9 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
     data = await state.get_data()
     user_city = data.get("city")
     citizenship = data.get("citizenship")
-    citizenship_type = CITIZENSHIP_TYPE_MAP.get(citizenship)
     records = get_average_income()
     city_records = [r for r in records if r["city"].lower() == user_city.lower()]
+
     if not city_records:
         await callback.message.answer("К сожалению, по этому городу нет данных 😔")
         await state.clear()
