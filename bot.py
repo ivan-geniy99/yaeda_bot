@@ -156,20 +156,22 @@ async def city_question(message: types.Message, state: FSMContext):
     records = get_average_income()
     matched_records = [r for r in records if r["city"].lower() == user_city_lower]
 
-    # Город найден
     if matched_records:
-        data = await state.get_data()
-        last_message_id = data.get("last_message_id")
-
+        # Сохраняем ID сообщения о городе для редактирования назад
         sent_msg = await message.answer(
             "Какое у вас гражданство?",
             reply_markup=citizenship_keyboard()
         )
-        await state.update_data(city=user_city, last_message_id=sent_msg.message_id)
+        # last_user_question_id — это сообщение о городе
+        data = await state.get_data()
+        await state.update_data(
+            city=user_city,
+            last_user_question_id=data.get("last_message_id"),  # сообщение о городе
+            last_message_id=sent_msg.message_id  # последнее сообщение бота для кнопки назад
+        )
         await state.set_state(Form.waiting_for_citizenship)
         return
 
-    # Показать весь список городов
     if user_city == "Показать весь список городов📋":
         cities = sorted({r["city"] for r in records})
         response_text = "📍 Доступные города:\n\n" + ", ".join(cities) + \
@@ -177,11 +179,7 @@ async def city_question(message: types.Message, state: FSMContext):
         await message.answer(response_text, reply_markup=None)
         return
 
-    # Город не найден
     response_text = f"Я не смог найти город «{user_city}».\n\nПопробуйте написать ещё раз или откройте список городов 👇"
-    data = await state.get_data()
-    last_message_id = data.get("last_message_id")
-
     sent_msg = await message.answer(
         response_text,
         reply_markup=city_list_inline_keyboard
@@ -346,23 +344,31 @@ async def universal_back(callback: types.CallbackQuery, state: FSMContext):
         await state.set_state(Form.waiting_for_age_question)
 
     elif callback.data == "back_to_city_question":
-        await bot.edit_message_text(
-            chat_id=chat_id,
-            message_id=message_id,
-            text=(
-                "В каком городе вы планируете выполнять доставки?\n\n"
-                "Напишите город или откройте список 👇"
-            ),
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(
-                        text="⬅ Назад",
-                        callback_data="back_to_age_question"
-                    )]
-                ]
+        data = await state.get_data()
+        last_user_question_id = data.get("last_user_question_id")  # сообщение о городе
+
+        if last_user_question_id:
+            sent_msg = await bot.edit_message_text(
+                chat_id=chat_id,
+                message_id=last_user_question_id,
+                text=(
+                    "В каком городе вы планируете выполнять доставки?\n\n"
+                    "Напишите город или откройте список 👇"
+                ),
+                reply_markup=InlineKeyboardMarkup(
+                    inline_keyboard=[
+                        [InlineKeyboardButton(
+                            text="⬅ Назад",
+                            callback_data="back_to_age_question"
+                        )]
+                    ]
+                )
             )
-        )
+            # Обновляем last_message_id для кнопки назад
+            await state.update_data(last_message_id=sent_msg.message_id)
+
         await state.set_state(Form.waiting_for_city)
+
 
 
     elif callback.data == "back_to_citizenship_question":
