@@ -324,64 +324,53 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
 # ===============================
 # CALLBACK: Универсальный "Назад"
 # ===============================
-@dp.callback_query(lambda c: c.data in ["back_to_age_question", "back_to_city_question", "back_to_citizenship_question"])
+@dp.callback_query(lambda c: c.data in [
+    "back_to_age_question",
+    "back_to_city_question",
+    "back_to_citizenship_question"
+])
 async def universal_back(callback: types.CallbackQuery, state: FSMContext):
     chat_id = callback.message.chat.id
     data = await state.get_data()
-    message_id = data.get("last_message_id")
+    last_bot_msg_id = data.get("last_message_id")  # ВСЕГДА редактируем последнее сообщение бота
 
-    if not message_id:
+    if not last_bot_msg_id:
         await callback.answer()
         return
 
+    # Редактируем текст последнего сообщения бота в зависимости от кнопки
     if callback.data == "back_to_age_question":
         await bot.edit_message_text(
             chat_id=chat_id,
-            message_id=message_id,
+            message_id=last_bot_msg_id,
             text="Вам есть 18 лет?",
             reply_markup=yes_no_inline_keyboard
         )
         await state.set_state(Form.waiting_for_age_question)
 
     elif callback.data == "back_to_city_question":
-        data = await state.get_data()
-        last_user_question_id = data.get("last_user_question_id")  # сообщение о городе
-
-        if last_user_question_id:
-            sent_msg = await bot.edit_message_text(
-                chat_id=chat_id,
-                message_id=last_user_question_id,
-                text=(
-                    "В каком городе вы планируете выполнять доставки?\n\n"
-                    "Напишите город или откройте список 👇"
-                ),
-                reply_markup=InlineKeyboardMarkup(
-                    inline_keyboard=[
-                        [InlineKeyboardButton(
-                            text="⬅ Назад",
-                            callback_data="back_to_age_question"
-                        )]
-                    ]
-                )
+        await bot.edit_message_text(
+            chat_id=chat_id,
+            message_id=last_bot_msg_id,
+            text="В каком городе вы планируете выполнять доставки?\n\nНапишите город или откройте список 👇",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]]
             )
-            # Обновляем last_message_id для кнопки назад
-            await state.update_data(last_message_id=sent_msg.message_id)
-
+        )
         await state.set_state(Form.waiting_for_city)
-
-
 
     elif callback.data == "back_to_citizenship_question":
         await bot.edit_message_text(
             chat_id=chat_id,
-            message_id=message_id,
-            text="Какое у вас гражданство?",
-            reply_markup=citizenship_keyboard()
+            message_id=last_bot_msg_id,
+            text="В каком городе вы планируете выполнять доставки?\n\nНапишите город или откройте список 👇",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]]
+            )
         )
-        await state.set_state(Form.waiting_for_citizenship)
+        await state.set_state(Form.waiting_for_city)
 
     await callback.answer()
-
 
 # ===============================
 # WEBHOOK
