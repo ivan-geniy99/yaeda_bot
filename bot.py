@@ -364,6 +364,7 @@ async def universal_back(callback: types.CallbackQuery, state: FSMContext):
         )
         await state.set_state(Form.waiting_for_city)
 
+
     elif callback.data == "back_to_citizenship_question":
         await bot.edit_message_text(
             chat_id=chat_id,
