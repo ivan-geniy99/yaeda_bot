@@ -111,6 +111,7 @@ async def first_question(message: types.Message, state: FSMContext):
 @dp.message(Form.waiting_for_age_question)
 async def age_question(message: types.Message, state: FSMContext):
     if message.text == "Да✅":
+        # Убираем старые Reply-кнопки
         await message.answer(
             "В каком городе вы планируете выполнять доставки?\n\n"
             "Напишите город или откройте список 👇",
@@ -119,6 +120,10 @@ async def age_question(message: types.Message, state: FSMContext):
                     [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]
                 ]
             )
+        )
+        await message.answer(
+            "Для ввода города используйте клавиатуру или напишите текстом.",
+            reply_markup=types.ReplyKeyboardRemove()  # убираем кнопки Да/Нет
         )
         await state.set_state(Form.waiting_for_city)
 
@@ -132,7 +137,13 @@ async def age_question(message: types.Message, state: FSMContext):
                 ]
             )
         )
+        # Убираем кнопки Да/Нет
+        await message.answer(
+            "",
+            reply_markup=types.ReplyKeyboardRemove()
+        )
         await state.set_state(Form.waiting_for_age_question)
+
 
 @dp.message(Form.waiting_for_city)
 async def city_question(message: types.Message, state: FSMContext):
@@ -150,12 +161,13 @@ async def city_question(message: types.Message, state: FSMContext):
     if matched_records:
         await state.update_data(city=user_city)
 
+        # показываем inline-кнопки с гражданством и кнопку назад
         await message.answer(
             "Какое у вас гражданство?",
             reply_markup=citizenship_keyboard
         )
         await state.set_state(Form.waiting_for_citizenship)
-        return       
+        return
 
     # 2. Пользователь нажал кнопку «Показать весь список городов📋»
     if user_city == "Показать весь список городов📋":
@@ -179,8 +191,8 @@ async def city_question(message: types.Message, state: FSMContext):
     )
 
     await message.answer(response_text, reply_markup=reply_markup)
-    
-@asynccontextmanager
+
+
 async def lifespan(app: FastAPI):
     await bot.set_webhook(f"{WEBHOOK_URL}/{BOT_TOKEN}")
     yield
