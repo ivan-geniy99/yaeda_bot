@@ -213,24 +213,35 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
 
     # Проверка найма
     if (citizenship_type == "eaes" and city_records[0].get("eaes") != "TRUE") or \
-       (citizenship_type == "not_rf" and city_records[0].get("not_rf") != "TRUE"):
-        sent_msg = await bot.edit_message_text(
+        (citizenship_type == "not_rf" and city_records[0].get("not_rf") != "TRUE"):
+    
+        # Отправляем отдельное сообщение о временном отсутствии найма
+        sent_msg = await bot.send_message(
             chat_id=callback.message.chat.id,
-            message_id=last_message_id,
             text="❌ В выбранном городе временно нет найма.\n\nПопробуйте выбрать другой город.",
             reply_markup=InlineKeyboardMarkup(
                 inline_keyboard=[[InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")]]
             )
         )
+    
+        # Сохраняем message_id для кнопки «Назад»
         await state.update_data(last_message_id=sent_msg.message_id)
+        # Состояние остаётся citizenship
         await state.set_state(Form.waiting_for_citizenship)
         await callback.answer()
         return
 
     # Найм возможен — формат доставки
-    sent_msg = await bot.edit_message_text(
+    # Сначала убираем кнопки с предыдущего сообщения
+    await bot.edit_message_reply_markup(
         chat_id=callback.message.chat.id,
         message_id=last_message_id,
+        reply_markup=None
+    )
+
+    # Отправляем новый вопрос отдельным сообщением
+    sent_msg = await bot.send_message(
+        chat_id=callback.message.chat.id,
         text="Остался последний вопрос — и покажу доход\nКакой формат доставки вам подходит?",
         reply_markup=delivery_type_keyboard()
     )
