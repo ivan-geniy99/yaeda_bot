@@ -338,7 +338,6 @@ async def universal_back(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    # Редактируем текст последнего сообщения бота в зависимости от кнопки
     if callback.data == "back_to_age_question":
         await bot.edit_message_text(
             chat_id=chat_id,
@@ -360,6 +359,7 @@ async def universal_back(callback: types.CallbackQuery, state: FSMContext):
         await state.set_state(Form.waiting_for_city)
 
     elif callback.data == "back_to_citizenship_question":
+        # ✅ Здесь ключевое: редактируем сообщение гражданства → превращаем в сообщение про город
         await bot.edit_message_text(
             chat_id=chat_id,
             message_id=last_bot_msg_id,
@@ -368,7 +368,11 @@ async def universal_back(callback: types.CallbackQuery, state: FSMContext):
                 inline_keyboard=[[InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]]
             )
         )
+        # FSM меняем на шаг города, чтобы бот снова ждал текст от пользователя
         await state.set_state(Form.waiting_for_city)
+
+    # Обновляем last_message_id, чтобы дальше редактировать именно это сообщение
+    await state.update_data(last_message_id=last_bot_msg_id)
 
     await callback.answer()
 
