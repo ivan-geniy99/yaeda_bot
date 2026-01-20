@@ -161,12 +161,10 @@ async def city_question(message: types.Message, state: FSMContext):
         data = await state.get_data()
         last_message_id = data.get("last_message_id")
 
-        sent_msg = await bot.edit_message_text(
-            chat_id=message.chat.id,
-            message_id=last_message_id,
-            text="Какое у вас гражданство?",
+        sent_msg = await message.answer(
+            "Какое у вас гражданство?",
             reply_markup=citizenship_keyboard()
-)
+        )
         await state.update_data(city=user_city, last_message_id=sent_msg.message_id)
         await state.set_state(Form.waiting_for_citizenship)
         return
@@ -184,10 +182,8 @@ async def city_question(message: types.Message, state: FSMContext):
     data = await state.get_data()
     last_message_id = data.get("last_message_id")
 
-    sent_msg = await bot.edit_message_text(
-        chat_id=message.chat.id,
-        message_id=last_message_id,
-        text=response_text,
+    sent_msg = await message.answer(
+        response_text,
         reply_markup=city_list_inline_keyboard
     )
     await state.update_data(last_message_id=sent_msg.message_id)
@@ -231,7 +227,7 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
         # Отправляем отдельное сообщение о временном отсутствии найма
         sent_msg = await bot.edit_message_text(
             chat_id=callback.message.chat.id,
-            message_id=callback.message.message_id,
+            message_id=last_message_id, 
             text=(
                 "❌ В выбранном городе временно нет найма.\n\n"
                 "Попробуйте выбрать другой город."
@@ -264,7 +260,7 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
     # Отправляем новый вопрос отдельным сообщением
     sent_msg = await bot.edit_message_text(
         chat_id=callback.message.chat.id,
-        message_id=callback.message.message_id,
+        message_id=last_message_id,
         text=(
             "Остался последний вопрос — и покажу доход\n"
             "Какой формат доставки вам подходит?"
@@ -333,7 +329,12 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
 @dp.callback_query(lambda c: c.data in ["back_to_age_question", "back_to_city_question", "back_to_citizenship_question"])
 async def universal_back(callback: types.CallbackQuery, state: FSMContext):
     chat_id = callback.message.chat.id
-    message_id = callback.message.message_id  # 🔴 ВАЖНО: именно это сообщение
+    data = await state.get_data()
+    message_id = data.get("last_message_id")
+
+    if not message_id:
+        await callback.answer()
+        return
 
     if callback.data == "back_to_age_question":
         await bot.edit_message_text(
