@@ -76,7 +76,8 @@ citizenship_keyboard = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="🇰🇿 Казахстан", callback_data="citizenship_kz")],
         [InlineKeyboardButton(text="🇦🇲 Армения", callback_data="citizenship_am")],
         [InlineKeyboardButton(text="🇰🇬 Кыргызстан", callback_data="citizenship_kg")],
-        [InlineKeyboardButton(text="Другое", callback_data="citizenship_other")]
+        [InlineKeyboardButton(text="Другое", callback_data="citizenship_other")],
+        [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_city_question")],
     ]
 )
 
@@ -86,6 +87,7 @@ delivery_type_keyboard = InlineKeyboardMarkup(
         [InlineKeyboardButton(text="🧍 Пешком", callback_data="delivery_walk")],
         [InlineKeyboardButton(text="🚲 Вело", callback_data="delivery_bike")],
         [InlineKeyboardButton(text="🚗 Авто", callback_data="delivery_car")],
+        [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")],
     ]
 )
 
@@ -112,7 +114,11 @@ async def age_question(message: types.Message, state: FSMContext):
         await message.answer(
             "В каком городе вы планируете выполнять доставки?\n\n"
             "Напишите город или откройте список 👇",
-            reply_markup=city_keyboard
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]
+                ]
+            )
         )
         await state.set_state(Form.waiting_for_city)
 
@@ -120,9 +126,13 @@ async def age_question(message: types.Message, state: FSMContext):
         await message.answer(
             "Если вам есть 16 лет, то можно откликнуться на вакансию по ссылке:\n"
             "https://example.com",
-            reply_markup=types.ReplyKeyboardRemove()
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]
+                ]
+            )
         )
-        await state.clear()
+        await state.set_state(Form.waiting_for_age_question)
 
 @dp.message(Form.waiting_for_city)
 async def city_question(message: types.Message, state: FSMContext):
@@ -220,18 +230,28 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
     if citizenship_type == "eaes" and city_records[0].get("eaes") != "TRUE":
         await callback.message.answer(
             "❌ В выбранном городе временно нет найма для граждан ЕАЭС.\n\n"
-            "Попробуйте выбрать другой город."
+            "Попробуйте выбрать другой город.",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")]
+            ]
         )
-        await state.clear()
+        )
+        await state.set_state(Form.waiting_for_citizenship)
         await callback.answer()
         return
 
     if citizenship_type == "not_rf" and city_records[0].get("not_rf") != "TRUE":
         await callback.message.answer(
             "❌ В выбранном городе временно нет найма для иностранных граждан.\n\n"
-            "Попробуйте выбрать другой город."
+            "Попробуйте выбрать другой город.",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")]
+            ]
         )
-        await state.clear()
+        )
+        await state.set_state(Form.waiting_for_citizenship)
         await callback.answer()
         return
 
@@ -244,6 +264,33 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
 
     await state.set_state(Form.waiting_for_delivery_type)
     await callback.answer()
+
+@dp.callback_query()
+async def go_back(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == "back_to_age_question":
+        await callback.message.edit_text(
+            "Вам есть 18 лет?",
+            reply_markup=yes_no_keyboard
+        )
+        await state.set_state(Form.waiting_for_age_question)
+        await callback.answer()
+        
+    elif callback.data == "back_to_city_question":
+        await callback.message.edit_text(
+            "В каком городе вы планируете выполнять доставки?\n\n"
+            "Напишите город или откройте список 👇",
+            reply_markup=city_keyboard  # ← клавиатура с кнопкой "Показать весь список городов"
+        )
+        await state.set_state(Form.waiting_for_city)
+        await callback.answer()
+
+    elif callback.data == "back_to_citizenship_question":
+        await callback.message.edit_text(
+            "Какое у вас гражданство?",
+            reply_markup=citizenship_keyboard  # возвращаем клавиатуру выбора гражданства
+        )
+        await state.set_state(Form.waiting_for_citizenship)
+        await callback.answer()
 
 @dp.callback_query(Form.waiting_for_delivery_type)
 async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext):
