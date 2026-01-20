@@ -1,15 +1,13 @@
 import os
-from contextlib import asynccontextmanager
 from fastapi import FastAPI, Request
 from aiogram import Bot, Dispatcher, types
-from aiogram.types import ReplyKeyboardMarkup, KeyboardButton, Update
+from aiogram.types import Update, InlineKeyboardMarkup, InlineKeyboardButton
 from aiogram.filters import CommandStart
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import uvicorn
 from table_income import get_average_income
-from aiogram.types import InlineKeyboardMarkup, InlineKeyboardButton
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_URL = os.environ["WEBHOOK_URL"]
@@ -24,11 +22,7 @@ DELIVERY_TITLES = {
 }
 
 DAILY_PAYOUT_CITIZENSHIPS = {
-    "Россия",
-    "Беларусь",
-    "Казахстан",
-    "Армения",
-    "Кыргызстан",
+    "Россия", "Беларусь", "Казахстан", "Армения", "Кыргызстан"
 }
 
 CITIZENSHIP_TYPE_MAP = {
@@ -45,131 +39,129 @@ class Form(StatesGroup):
     waiting_for_first_question = State()
     waiting_for_age_question = State()
     waiting_for_city = State()
-    waiting_for_citizenship = State()  
+    waiting_for_citizenship = State()
     waiting_for_delivery_type = State()
 
-# Клавиатура "Хорошо, поехали"
-next_keyboard = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="Хорошо, поехали✅")]],
-    resize_keyboard=True
-)
-
-# Клавиатура "Да / Нет"
-yes_no_keyboard = ReplyKeyboardMarkup(
-    keyboard=[
-        [KeyboardButton(text="Да✅"), KeyboardButton(text="Нет❌")]
-    ],
-    resize_keyboard=True
-)
-
-#Клавиатура "Показать весь список городов"
-city_keyboard = ReplyKeyboardMarkup(
-    keyboard=[[KeyboardButton(text="Показать весь список городов📋")]],
-    resize_keyboard=True
-)
-
-#Инлайн кнопки с гражданством
-citizenship_keyboard = InlineKeyboardMarkup(
+# Инлайн кнопка "Хорошо, поехали"
+next_inline_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="🇷🇺 Россия", callback_data="citizenship_ru")],
-        [InlineKeyboardButton(text="🇧🇾 Беларусь", callback_data="citizenship_by")],
-        [InlineKeyboardButton(text="🇰🇿 Казахстан", callback_data="citizenship_kz")],
-        [InlineKeyboardButton(text="🇦🇲 Армения", callback_data="citizenship_am")],
-        [InlineKeyboardButton(text="🇰🇬 Кыргызстан", callback_data="citizenship_kg")],
-        [InlineKeyboardButton(text="Другое", callback_data="citizenship_other")],
-        [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_city_question")],
+        [InlineKeyboardButton(text="Хорошо, поехали✅", callback_data="next_start")]
     ]
 )
 
-#Инлайн кнопки с типом доставки
-delivery_type_keyboard = InlineKeyboardMarkup(
+# Инлайн кнопки "Да/Нет"
+yes_no_inline_keyboard = InlineKeyboardMarkup(
     inline_keyboard=[
-        [InlineKeyboardButton(text="🧍 Пешком", callback_data="delivery_walk")],
-        [InlineKeyboardButton(text="🚲 Вело", callback_data="delivery_bike")],
-        [InlineKeyboardButton(text="🚗 Авто", callback_data="delivery_car")],
-        [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")],
+        [InlineKeyboardButton(text="Да✅", callback_data="age_yes"),
+         InlineKeyboardButton(text="Нет❌", callback_data="age_no")]
     ]
 )
 
+# Инлайн кнопки "Показать весь список городов"
+city_list_inline_keyboard = InlineKeyboardMarkup(
+    inline_keyboard=[
+        [InlineKeyboardButton(text="Показать весь список городов📋", callback_data="show_all_cities")]
+    ]
+)
+
+# Инлайн кнопки с гражданством
+def citizenship_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🇷🇺 Россия", callback_data="citizenship_ru")],
+            [InlineKeyboardButton(text="🇧🇾 Беларусь", callback_data="citizenship_by")],
+            [InlineKeyboardButton(text="🇰🇿 Казахстан", callback_data="citizenship_kz")],
+            [InlineKeyboardButton(text="🇦🇲 Армения", callback_data="citizenship_am")],
+            [InlineKeyboardButton(text="🇰🇬 Кыргызстан", callback_data="citizenship_kg")],
+            [InlineKeyboardButton(text="Другое", callback_data="citizenship_other")],
+            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_city_question")],
+        ]
+    )
+
+# Инлайн кнопки с типом доставки
+def delivery_type_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="🧍 Пешком", callback_data="delivery_walk")],
+            [InlineKeyboardButton(text="🚲 Вело", callback_data="delivery_bike")],
+            [InlineKeyboardButton(text="🚗 Авто", callback_data="delivery_car")],
+            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")],
+        ]
+    )
+
+# ===============================
+# START
+# ===============================
 @dp.message(CommandStart())
 async def cmd_start(message: types.Message, state: FSMContext):
     await message.answer(
         "Чтобы показать условия и доход — задам несколько коротких вопросов 👌",
-        reply_markup=next_keyboard
+        reply_markup=next_inline_keyboard
     )
     await state.set_state(Form.waiting_for_first_question)
 
-@dp.message(Form.waiting_for_first_question)
-async def first_question(message: types.Message, state: FSMContext):
-    if message.text == "Хорошо, поехали✅":
-        await message.answer(
-            "Вам есть 18 лет?",
-            reply_markup=yes_no_keyboard
-        )
-        await state.set_state(Form.waiting_for_age_question)
+@dp.callback_query()
+async def start_next(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data != "next_start":
+        return
+    await callback.message.edit_text(
+        "Вам есть 18 лет?",
+        reply_markup=yes_no_inline_keyboard
+    )
+    await state.set_state(Form.waiting_for_age_question)
+    await callback.answer()
 
-@dp.message(Form.waiting_for_age_question)
-async def age_question(message: types.Message, state: FSMContext):
-    if message.text == "Да✅":
-        # Убираем старые Reply-кнопки
-        await message.answer(
+# ===============================
+# ВОЗРАСТ
+# ===============================
+@dp.callback_query()
+async def age_answer(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data not in ["age_yes", "age_no"]:
+        return
+
+    if callback.data == "age_yes":
+        await callback.message.edit_text(
             "В каком городе вы планируете выполнять доставки?\n\n"
             "Напишите город или откройте список 👇",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]
-                ]
+                inline_keyboard=[[InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]]
             )
-        )
-        await message.answer(
-            "Для ввода города используйте клавиатуру или напишите текстом.",
-            reply_markup=types.ReplyKeyboardRemove()  # убираем кнопки Да/Нет
         )
         await state.set_state(Form.waiting_for_city)
 
-    elif message.text == "Нет❌":
-        await message.answer(
+    elif callback.data == "age_no":
+        await callback.message.edit_text(
             "Если вам есть 16 лет, то можно откликнуться на вакансию по ссылке:\n"
             "https://example.com",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]
-                ]
+                inline_keyboard=[[InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]]
             )
-        )
-        # Убираем кнопки Да/Нет
-        await message.answer(
-            "",
-            reply_markup=types.ReplyKeyboardRemove()
         )
         await state.set_state(Form.waiting_for_age_question)
 
+    await callback.answer()
 
+# ===============================
+# ГОРОД
+# ===============================
 @dp.message(Form.waiting_for_city)
 async def city_question(message: types.Message, state: FSMContext):
     user_city = message.text.strip()
     user_city_lower = user_city.lower()
-
     records = get_average_income()
+    matched_records = [r for r in records if r["city"].lower() == user_city_lower]
 
-    matched_records = [
-        r for r in records
-        if r["city"].lower() == user_city_lower
-    ]
-
-    # 1. Город найден
+    # Город найден
     if matched_records:
         await state.update_data(city=user_city)
-
-        # показываем inline-кнопки с гражданством и кнопку назад
         await message.answer(
             "Какое у вас гражданство?",
-            reply_markup=citizenship_keyboard
+            reply_markup=citizenship_keyboard()
         )
         await state.set_state(Form.waiting_for_citizenship)
         return
 
-    # 2. Пользователь нажал кнопку «Показать весь список городов📋»
+    # Показать весь список городов
     if user_city == "Показать весь список городов📋":
         cities = sorted({r["city"] for r in records})
         response_text = (
@@ -177,29 +169,18 @@ async def city_question(message: types.Message, state: FSMContext):
             + ", ".join(cities)
             + "\n\n✍️ Скопируйте нужный город и отправьте его сообщением"
         )
-        await message.answer(response_text, reply_markup=types.ReplyKeyboardRemove())
+        await message.answer(response_text, reply_markup=None)
         return
 
-    # 3. Город не найден
+    # Город не найден
     response_text = (
-        f"Я не смог найти город «{user_city}».\n\n"
-        "Попробуйте написать ещё раз или откройте список городов 👇"
+        f"Я не смог найти город «{user_city}».\n\nПопробуйте написать ещё раз или откройте список городов 👇"
     )
-    reply_markup = ReplyKeyboardMarkup(
-        keyboard=[[KeyboardButton(text="Показать весь список городов📋")]],
-        resize_keyboard=True
-    )
+    await message.answer(response_text, reply_markup=city_list_inline_keyboard)
 
-    await message.answer(response_text, reply_markup=reply_markup)
-
-
-async def lifespan(app: FastAPI):
-    await bot.set_webhook(f"{WEBHOOK_URL}/{BOT_TOKEN}")
-    yield
-    await bot.delete_webhook()
-
-app = FastAPI(lifespan=lifespan)
-
+# ===============================
+# ГРАЖДАНСТВО
+# ===============================
 @dp.callback_query(Form.waiting_for_citizenship)
 async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
     citizenship_map = {
@@ -210,100 +191,78 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
         "citizenship_kg": "Кыргызстан",
         "citizenship_other": "Другое",
     }
-
     citizenship = citizenship_map.get(callback.data)
-
     if not citizenship:
         await callback.answer()
         return
 
     await state.update_data(citizenship=citizenship)
-
     data = await state.get_data()
     user_city = data.get("city")
     citizenship_type = CITIZENSHIP_TYPE_MAP.get(citizenship)
-
     records = get_average_income()
-
-    city_records = [
-        r for r in records
-        if r["city"].lower() == user_city.lower()
-    ]
+    city_records = [r for r in records if r["city"].lower() == user_city.lower()]
 
     if not city_records:
-        await callback.message.answer(
-            "К сожалению, по этому городу нет данных 😔"
-        )
+        await callback.message.answer("К сожалению, по этому городу нет данных 😔")
         await state.clear()
         await callback.answer()
         return
 
-    # 🔥 ПРОВЕРКА НАЙМА ПО ГРАЖДАНСТВУ
-    if citizenship_type == "eaes" and city_records[0].get("eaes") != "TRUE":
+    # Найм проверка
+    if (citizenship_type == "eaes" and city_records[0].get("eaes") != "TRUE") or \
+       (citizenship_type == "not_rf" and city_records[0].get("not_rf") != "TRUE"):
         await callback.message.answer(
-            "❌ В выбранном городе временно нет найма для граждан ЕАЭС.\n\n"
-            "Попробуйте выбрать другой город.",
+            "❌ В выбранном городе временно нет найма.\n\nПопробуйте выбрать другой город.",
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")]
-            ]
-        )
+                inline_keyboard=[[InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")]]
+            )
         )
         await state.set_state(Form.waiting_for_citizenship)
         await callback.answer()
         return
 
-    if citizenship_type == "not_rf" and city_records[0].get("not_rf") != "TRUE":
-        await callback.message.answer(
-            "❌ В выбранном городе временно нет найма для иностранных граждан.\n\n"
-            "Попробуйте выбрать другой город.",
-            reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[
-                    [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")]
-            ]
-        )
-        )
-        await state.set_state(Form.waiting_for_citizenship)
-        await callback.answer()
-        return
-
-    # ✅ ТОЛЬКО ЕСЛИ НАЙМ ВОЗМОЖЕН — СПРАШИВАЕМ ФОРМАТ
+    # Найм возможен — формат доставки
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
         "Остался последний вопрос — и покажу доход\nКакой формат доставки вам подходит?",
-        reply_markup=delivery_type_keyboard
+        reply_markup=delivery_type_keyboard()
     )
-
     await state.set_state(Form.waiting_for_delivery_type)
     await callback.answer()
 
+# ===============================
+# НАЗАД
+# ===============================
 @dp.callback_query()
 async def go_back(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == "back_to_age_question":
         await callback.message.edit_text(
             "Вам есть 18 лет?",
-            reply_markup=yes_no_keyboard
+            reply_markup=yes_no_inline_keyboard
         )
         await state.set_state(Form.waiting_for_age_question)
-        await callback.answer()
-        
+
     elif callback.data == "back_to_city_question":
         await callback.message.edit_text(
             "В каком городе вы планируете выполнять доставки?\n\n"
             "Напишите город или откройте список 👇",
-            reply_markup=city_keyboard  # ← клавиатура с кнопкой "Показать весь список городов"
+            reply_markup=city_list_inline_keyboard
         )
         await state.set_state(Form.waiting_for_city)
-        await callback.answer()
 
     elif callback.data == "back_to_citizenship_question":
         await callback.message.edit_text(
             "Какое у вас гражданство?",
-            reply_markup=citizenship_keyboard  # возвращаем клавиатуру выбора гражданства
+            reply_markup=citizenship_keyboard()
         )
         await state.set_state(Form.waiting_for_citizenship)
-        await callback.answer()
 
+    await callback.answer()
+
+# ===============================
+# ФОРМАТ ДОСТАВКИ
+# ===============================
 @dp.callback_query(Form.waiting_for_delivery_type)
 async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext):
     delivery_map = {
@@ -311,7 +270,6 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
         "delivery_bike": "bike",
         "delivery_car": "car",
     }
-
     delivery_type = delivery_map.get(callback.data)
     if not delivery_type:
         await callback.answer()
@@ -320,54 +278,23 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
     data = await state.get_data()
     user_city = data.get("city")
     citizenship = data.get("citizenship")
-
     citizenship_type = CITIZENSHIP_TYPE_MAP.get(citizenship)
-
     records = get_average_income()
-
-    # 🔹 Все записи по городу (не по формату!)
-    city_records = [
-        r for r in records
-        if r["city"].lower() == user_city.lower()
-    ]
-
+    city_records = [r for r in records if r["city"].lower() == user_city.lower()]
     if not city_records:
-        await callback.message.answer(
-            "К сожалению, по этому городу нет данных 😔"
-        )
+        await callback.message.answer("К сожалению, по этому городу нет данных 😔")
         await state.clear()
         return
 
-
-    # ===============================
-    # 🔹 ДАЛЬШЕ — ПОИСК ДОХОДА
-    # ===============================
-
-    matched_records = [
-        r for r in records
-        if r["city"].lower() == user_city.lower()
-        and r["delivery"] == delivery_type
-    ]
-
+    matched_records = [r for r in records if r["city"].lower() == user_city.lower() and r["delivery"] == delivery_type]
     if not matched_records:
-        await callback.message.answer(
-            "К сожалению, по выбранному формату нет данных 😔"
-        )
+        await callback.message.answer("К сожалению, по выбранному формату нет данных 😔")
         await state.clear()
         return
 
     r = matched_records[0]
-
-    # ===============================
-    # 🔹 ТЕКСТЫ ВЫПЛАТ
-    # ===============================
-
-    if citizenship in DAILY_PAYOUT_CITIZENSHIPS:
-        payout_text = "Выплаты: ежедневные"
-        legal_text = "Оформление через партнёра сервиса — самозанятость"
-    else:
-        payout_text = "Выплаты: еженедельные"
-        legal_text = "Оформление по договору через партнёра сервиса"
+    payout_text = "Выплаты: ежедневные" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Выплаты: еженедельные"
+    legal_text = "Оформление через партнёра сервиса — самозанятость" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Оформление по договору через партнёра сервиса"
 
     response_text = (
         f"📍 Доход курьера в городе: {user_city}\n"
@@ -381,13 +308,19 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
     )
 
     await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer(
-        response_text,
-        reply_markup=types.ReplyKeyboardRemove()
-    )
-
+    await callback.message.answer(response_text)
     await callback.answer()
     await state.clear()
+
+# ===============================
+# WEBHOOK
+# ===============================
+async def lifespan(app: FastAPI):
+    await bot.set_webhook(f"{WEBHOOK_URL}/{BOT_TOKEN}")
+    yield
+    await bot.delete_webhook()
+
+app = FastAPI(lifespan=lifespan)
 
 @app.post(f"/{BOT_TOKEN}")
 async def telegram_webhook(req: Request):
