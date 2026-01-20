@@ -196,7 +196,46 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
         return
 
     await state.update_data(citizenship=citizenship)
-    # убрать инлайн-кнопки у предыдущего сообщения
+
+    data = await state.get_data()
+    user_city = data.get("city")
+    citizenship_type = CITIZENSHIP_TYPE_MAP.get(citizenship)
+
+    records = get_average_income()
+
+    city_records = [
+        r for r in records
+        if r["city"].lower() == user_city.lower()
+    ]
+
+    if not city_records:
+        await callback.message.answer(
+            "К сожалению, по этому городу нет данных 😔"
+        )
+        await state.clear()
+        await callback.answer()
+        return
+
+    # 🔥 ПРОВЕРКА НАЙМА ПО ГРАЖДАНСТВУ
+    if citizenship_type == "eaes" and city_records[0].get("eaes") != "TRUE":
+        await callback.message.answer(
+            "❌ В выбранном городе временно нет найма для граждан ЕАЭС.\n\n"
+            "Попробуйте выбрать другой город."
+        )
+        await state.clear()
+        await callback.answer()
+        return
+
+    if citizenship_type == "not_rf" and city_records[0].get("not_rf") != "TRUE":
+        await callback.message.answer(
+            "❌ В выбранном городе временно нет найма для иностранных граждан.\n\n"
+            "Попробуйте выбрать другой город."
+        )
+        await state.clear()
+        await callback.answer()
+        return
+
+    # ✅ ТОЛЬКО ЕСЛИ НАЙМ ВОЗМОЖЕН — СПРАШИВАЕМ ФОРМАТ
     await callback.message.edit_reply_markup(reply_markup=None)
     await callback.message.answer(
         "Остался последний вопрос — и покажу доход\nКакой формат доставки вам подходит?",
@@ -240,27 +279,6 @@ async def delivery_type_chosen(callback: types.CallbackQuery, state: FSMContext)
         await state.clear()
         return
 
-    # ===============================
-    # 🔥 ПРОВЕРКА ГРАЖДАНСТВА
-    # ===============================
-
-    if citizenship_type == "eaes":
-        if city_records[0].get("eaes") != "TRUE":
-            await callback.message.answer(
-                "❌ В выбранном городе временно нет найма для граждан ЕАЭС.\n\n"
-                "Попробуйте выбрать другой город."
-            )
-            await state.clear()
-            return
-
-    if citizenship_type == "not_rf":
-        if city_records[0].get("not_rf") != "TRUE":
-            await callback.message.answer(
-                "❌ В выбранном городе временно нет найма для иностранных граждан.\n\n"
-                "Попробуйте выбрать другой город."
-            )
-            await state.clear()
-            return
 
     # ===============================
     # 🔹 ДАЛЬШЕ — ПОИСК ДОХОДА
