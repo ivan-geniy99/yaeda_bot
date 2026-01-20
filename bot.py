@@ -42,26 +42,24 @@ class Form(StatesGroup):
     waiting_for_citizenship = State()
     waiting_for_delivery_type = State()
 
+# ===============================
+# INLINE КНОПКИ
+# ===============================
+
 # Инлайн кнопка "Хорошо, поехали"
 next_inline_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Хорошо, поехали✅", callback_data="next_start")]
-    ]
+    inline_keyboard=[[InlineKeyboardButton(text="Хорошо, поехали✅", callback_data="next_start")]]
 )
 
 # Инлайн кнопки "Да/Нет"
 yes_no_inline_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Да✅", callback_data="age_yes"),
-         InlineKeyboardButton(text="Нет❌", callback_data="age_no")]
-    ]
+    inline_keyboard=[[InlineKeyboardButton(text="Да✅", callback_data="age_yes"),
+                      InlineKeyboardButton(text="Нет❌", callback_data="age_no")]]
 )
 
 # Инлайн кнопки "Показать весь список городов"
 city_list_inline_keyboard = InlineKeyboardMarkup(
-    inline_keyboard=[
-        [InlineKeyboardButton(text="Показать весь список городов📋", callback_data="show_all_cities")]
-    ]
+    inline_keyboard=[[InlineKeyboardButton(text="Показать весь список городов📋", callback_data="show_all_cities")]]
 )
 
 # Инлайн кнопки с гражданством
@@ -74,7 +72,7 @@ def citizenship_keyboard():
             [InlineKeyboardButton(text="🇦🇲 Армения", callback_data="citizenship_am")],
             [InlineKeyboardButton(text="🇰🇬 Кыргызстан", callback_data="citizenship_kg")],
             [InlineKeyboardButton(text="Другое", callback_data="citizenship_other")],
-            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_city_question")],
+            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_city_question")]
         ]
     )
 
@@ -85,7 +83,7 @@ def delivery_type_keyboard():
             [InlineKeyboardButton(text="🧍 Пешком", callback_data="delivery_walk")],
             [InlineKeyboardButton(text="🚲 Вело", callback_data="delivery_bike")],
             [InlineKeyboardButton(text="🚗 Авто", callback_data="delivery_car")],
-            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")],
+            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")]
         ]
     )
 
@@ -135,7 +133,6 @@ async def age_answer(callback: types.CallbackQuery, state: FSMContext):
             )
         )
         await state.set_state(Form.waiting_for_age_question)
-
     await callback.answer()
 
 # ===============================
@@ -161,18 +158,13 @@ async def city_question(message: types.Message, state: FSMContext):
     # Показать весь список городов
     if user_city == "Показать весь список городов📋":
         cities = sorted({r["city"] for r in records})
-        response_text = (
-            "📍 Доступные города:\n\n"
-            + ", ".join(cities)
-            + "\n\n✍️ Скопируйте нужный город и отправьте его сообщением"
-        )
+        response_text = "📍 Доступные города:\n\n" + ", ".join(cities) + \
+                        "\n\n✍️ Скопируйте нужный город и отправьте его сообщением"
         await message.answer(response_text, reply_markup=None)
         return
 
     # Город не найден
-    response_text = (
-        f"Я не смог найти город «{user_city}».\n\nПопробуйте написать ещё раз или откройте список городов 👇"
-    )
+    response_text = f"Я не смог найти город «{user_city}».\n\nПопробуйте написать ещё раз или откройте список городов 👇"
     await message.answer(response_text, reply_markup=city_list_inline_keyboard)
 
 # ===============================
@@ -229,7 +221,7 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 # ===============================
-# CALLBACK: Назад
+# CALLBACK: Назад с редактированием сообщений
 # ===============================
 @dp.callback_query(lambda c: c.data in ["back_to_age_question", "back_to_city_question", "back_to_citizenship_question"])
 async def go_back(callback: types.CallbackQuery, state: FSMContext):
@@ -244,7 +236,9 @@ async def go_back(callback: types.CallbackQuery, state: FSMContext):
         await callback.message.edit_text(
             "В каком городе вы планируете выполнять доставки?\n\n"
             "Напишите город или откройте список 👇",
-            reply_markup=city_list_inline_keyboard
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[[InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age_question")]]
+            )
         )
         await state.set_state(Form.waiting_for_city)
 
