@@ -158,10 +158,15 @@ async def city_question(message: types.Message, state: FSMContext):
 
     # Город найден
     if matched_records:
-        sent_msg = await message.answer(
-            "Какое у вас гражданство?",
+        data = await state.get_data()
+        last_message_id = data.get("last_message_id")
+
+        sent_msg = await bot.edit_message_text(
+            chat_id=message.chat.id,
+            message_id=last_message_id,
+            text="Какое у вас гражданство?",
             reply_markup=citizenship_keyboard()
-        )
+)
         await state.update_data(city=user_city, last_message_id=sent_msg.message_id)
         await state.set_state(Form.waiting_for_citizenship)
         return
@@ -176,7 +181,15 @@ async def city_question(message: types.Message, state: FSMContext):
 
     # Город не найден
     response_text = f"Я не смог найти город «{user_city}».\n\nПопробуйте написать ещё раз или откройте список городов 👇"
-    sent_msg = await message.answer(response_text, reply_markup=city_list_inline_keyboard)
+    data = await state.get_data()
+    last_message_id = data.get("last_message_id")
+
+    sent_msg = await bot.edit_message_text(
+        chat_id=message.chat.id,
+        message_id=last_message_id,
+        text=response_text,
+        reply_markup=city_list_inline_keyboard
+    )
     await state.update_data(last_message_id=sent_msg.message_id)
 
 # ===============================
@@ -216,11 +229,20 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
         (citizenship_type == "not_rf" and city_records[0].get("not_rf") != "TRUE"):
     
         # Отправляем отдельное сообщение о временном отсутствии найма
-        sent_msg = await bot.send_message(
+        sent_msg = await bot.edit_message_text(
             chat_id=callback.message.chat.id,
-            text="❌ В выбранном городе временно нет найма.\n\nПопробуйте выбрать другой город.",
+            message_id=callback.message.message_id,
+            text=(
+                "❌ В выбранном городе временно нет найма.\n\n"
+                "Попробуйте выбрать другой город."
+            ),
             reply_markup=InlineKeyboardMarkup(
-                inline_keyboard=[[InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_citizenship_question")]]
+                inline_keyboard=[
+                    [InlineKeyboardButton(
+                        text="⬅ Назад",
+                        callback_data="back_to_citizenship_question"
+                    )]
+                ]
             )
         )
     
@@ -240,9 +262,13 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
     )
 
     # Отправляем новый вопрос отдельным сообщением
-    sent_msg = await bot.send_message(
+    sent_msg = await bot.edit_message_text(
         chat_id=callback.message.chat.id,
-        text="Остался последний вопрос — и покажу доход\nКакой формат доставки вам подходит?",
+        message_id=callback.message.message_id,
+        text=(
+            "Остался последний вопрос — и покажу доход\n"
+            "Какой формат доставки вам подходит?"
+        ),
         reply_markup=delivery_type_keyboard()
     )
     await state.update_data(last_message_id=sent_msg.message_id)
