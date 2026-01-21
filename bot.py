@@ -45,6 +45,23 @@ TOP_CITIES = [
     "Казань", "Нижний Новгород"
 ]
 
+bonus_cities = [
+    "Ростов-на-Дону",
+    "Батайск",
+    "Пятигорск",
+    "Майкоп",
+    "Сочи",
+    "Москва",
+    "Красногорск",
+    "Тула",
+    "Воронеж",
+    "Мурманск",
+    "Пушкин",
+    "Ханты-Мансийск",
+    "Красноярск",
+    "Елабуга",
+    "Тобольск"
+]
 # ===============================
 # FSM
 # ===============================
@@ -172,10 +189,10 @@ def delivery_keyboard():
 @dp.message(CommandStart())
 async def start(message: types.Message, state: FSMContext):
     await message.answer(
-        "Чтобы показать условия и доход — задам несколько коротких вопросов 👌",
+        "Узнайте, какие возможности есть для курьеров в вашем городе — всего 3 быстрых вопроса 👌",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="Хорошо, поехали✅", callback_data="start_next")]
+                [InlineKeyboardButton(text="Хочу узнать✅", callback_data="start_next")]
             ]
         )
     )
@@ -211,7 +228,7 @@ async def age_answer(callback: types.CallbackQuery, state: FSMContext):
         return
 
     await callback.message.edit_text(
-        "Какое у вас гражданство?",
+        "Выберите ваше гражданство",
         reply_markup=citizenship_keyboard()
     )
     await state.set_state(Form.waiting_for_citizenship)
@@ -347,12 +364,23 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
         payout = "Выплаты: ежедневные" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Выплаты: еженедельно"
         legal = "Оформление через партнёра сервиса — самозанятость" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Оформление по договору через партнёра сервиса"
 
+        # 🔹 Форматируем числа с пробелами
+        day_income = f"{int(rec['day']):,}".replace(",", " ")
+        month_avg_income = f"{int(rec['month_avg']):,}".replace(",", " ")
+        month_max_income = f"{int(rec['month_max']):,}".replace(",", " ")
+
+        # 🔹 Цепляющая фраза про бонус, только если город в списке
+        bonus_text = ""
+        if city in bonus_cities:
+            bonus_text = "🎁 Новым курьерам в этом городе: 10 000 ₽ сверху за первые 35 заказов!\n\n"
         text = (
-            f"📍 Доход курьера в городе: {city}\n"
+            f"📍 Город: {city}\n"
             f"📦 Формат: {DELIVERY_TITLES[delivery]}\n\n"
-            f"💰 Средний в день — {rec['day']} ₽\n"
-            f"💰 Средний в месяц — {rec['month_avg']} ₽\n"
-            f"💰 Максимум в месяц — {rec['month_max']} ₽\n\n"
+            f"{bonus_text}"  # 🔹 вставляем бонус
+            f"💵 Доход курьера:\n"
+            f"• В день: {day_income} ₽\n"
+            f"• В месяц: {month_avg_income} ₽\n"
+            f"• Макс/мес: {month_max_income} ₽\n\n"
             f"{payout}\n"
             f"{legal}"
         )
