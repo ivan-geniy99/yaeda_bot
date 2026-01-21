@@ -78,10 +78,10 @@ def sort_cities(top, all_cities):
     rest = sorted(c for c in all_cities if c not in top_part)
     return top_part + rest
 
-def back_to_start_keyboard():
+def back_to_age_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_start")]
+            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_age")]
         ]
     )
 
@@ -178,7 +178,7 @@ async def age_answer(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == "age_no":
         await callback.message.edit_text(
             "Если вам есть 16 лет, можно откликнуться по ссылке:\nhttps://example.com",
-            reply_markup=back_to_start_keyboard()
+            reply_markup=back_to_age_keyboard()
         )
         await state.set_state(Form.waiting_for_underage)
         await callback.answer()
@@ -191,21 +191,23 @@ async def age_answer(callback: types.CallbackQuery, state: FSMContext):
     await state.set_state(Form.waiting_for_citizenship)
     await callback.answer()
 
-@dp.callback_query(Form.waiting_for_underage, lambda c: c.data == "back_to_start")
-async def back_to_start(callback: types.CallbackQuery, state: FSMContext):
-    await state.clear()
-
+@dp.callback_query(Form.waiting_for_underage, lambda c: c.data == "back_to_age")
+async def back_to_age(callback: types.CallbackQuery, state: FSMContext):
     await callback.message.edit_text(
-        "Чтобы показать условия и доход — задам несколько коротких вопросов 👌",
+        "Вам есть 18 лет?",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton(text="Хорошо, поехали✅", callback_data="start_next")]
+                [
+                    InlineKeyboardButton(text="Да✅", callback_data="age_yes"),
+                    InlineKeyboardButton(text="Нет❌", callback_data="age_no")
+                ]
             ]
         )
     )
 
-    await state.set_state(Form.waiting_for_start)
+    await state.set_state(Form.waiting_for_age)
     await callback.answer()
+
 
 
 # ===============================
