@@ -362,40 +362,26 @@ async def delivery_chosen(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=income_keyboard()
 )
 
-@dp.callback_query(lambda c: c.data == "income_bonus")
-async def income_bonus(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "🎁 Бонусы для курьеров\n\n"
-        "Бонус 10 000 ₽ за первые 35 заказов\n"
-        "в течение 10 дней сверх основного дохода.",
-        reply_markup=income_keyboard()
-    )
-    await callback.answer()  # 🔹 обязательно
-
-@dp.callback_query(lambda c: c.data == "income_faq")
-async def income_faq(callback: types.CallbackQuery):
-    await callback.message.edit_text(
-        "❓ Частые вопросы\n\n"
-        "1. Как часто выплаты?\n"
-        "— ежедневно или еженедельно\n\n"
-        "2. Можно ли совмещать?\n"
-        "— да, график свободный\n\n"
-        "3. Нужен ли опыт?\n"
-        "— нет, обучаем",
-        reply_markup=income_keyboard()
-    )
-    await callback.answer()  # 🔹 обязательно
-
-@dp.callback_query(lambda c: c.data == "income_recalc")
-async def income_recalc(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
-        "Какой формат доставки вам подходит?",
-        reply_markup=delivery_keyboard()
-    )
-    await state.set_state(Form.waiting_for_delivery)
-    await callback.answer()  # 🔹 обязательно
-
-
+@dp.callback_query(lambda c: c.data in ["income_bonus", "income_faq", "income_recalc"])
+async def income_buttons(callback: types.CallbackQuery, state: FSMContext):
+    if callback.data == "income_bonus":
+        await callback.message.edit_text(
+            "🎁 Бонусы для курьеров\n\nБонус 10 000 ₽ за первые 35 заказов\nв течение 10 дней сверх основного дохода.",
+            reply_markup=income_keyboard()
+        )
+    elif callback.data == "income_faq":
+        await callback.message.edit_text(
+            "❓ Частые вопросы\n\n1. Как часто выплаты?\n— ежедневно или еженедельно\n2. Можно ли совмещать?\n— да, график свободный\n3. Нужен ли опыт?\n— нет, обучаем",
+            reply_markup=income_keyboard()
+        )
+    elif callback.data == "income_recalc":
+        await callback.message.edit_text(
+            "Какой формат доставки вам подходит?",
+            reply_markup=delivery_keyboard()
+        )
+        await state.set_state(Form.waiting_for_delivery)
+    
+    await callback.answer()
 
 # ===============================
 # WEBHOOK
