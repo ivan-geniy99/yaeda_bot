@@ -72,6 +72,32 @@ def filter_cities_by_citizenship(records, citizenship_type):
             cities.add(r["city"])
     return sorted(cities)
 
+def income_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(
+                text="📝 Оставить заявку",
+                url="https://example.com/apply"  # ссылка-рыба
+            )],
+            [
+                InlineKeyboardButton(
+                    text="🎁 Бонусы для курьеров",
+                    callback_data="income_bonus"
+                ),
+                InlineKeyboardButton(
+                    text="❓ Частые вопросы",
+                    callback_data="income_faq"
+                )
+            ],
+            [
+                InlineKeyboardButton(
+                    text="🔄 Рассчитать ещё раз",
+                    callback_data="income_recalc"
+                )
+            ]
+        ]
+    )
+
 
 def sort_cities(top, all_cities):
     top_part = [c for c in top if c in all_cities]
@@ -321,7 +347,7 @@ async def delivery_chosen(callback: types.CallbackQuery, state: FSMContext):
     payout = "Выплаты: ежедневные" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Выплаты: еженедельные"
     legal = "Оформление через партнёра сервиса — самозанятость" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Оформление по договору через партнёра сервиса"
 
-    await callback.message.edit_text(
+    text = (
         f"📍 Доход курьера в городе: {city}\n"
         f"📦 Формат: {DELIVERY_TITLES[delivery]}\n\n"
         f"💰 Средний в день — {rec['day']} ₽\n"
@@ -331,8 +357,44 @@ async def delivery_chosen(callback: types.CallbackQuery, state: FSMContext):
         f"{legal}"
     )
 
-    await state.clear()
+    await callback.message.edit_text(
+        text,
+        reply_markup=income_keyboard()
+)
+
+@dp.callback_query(lambda c: c.data == "income_bonus")
+async def income_bonus(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "🎁 Бонусы для курьеров\n\n"
+        "Бонус 10 000 ₽ за первые 35 заказов\n"
+        "в течение 10 дней сверх основного дохода.",
+        reply_markup=income_keyboard()
+    )
     await callback.answer()
+
+@dp.callback_query(lambda c: c.data == "income_faq")
+async def income_faq(callback: types.CallbackQuery):
+    await callback.message.edit_text(
+        "❓ Частые вопросы\n\n"
+        "1. Как часто выплаты?\n"
+        "— ежедневно или еженедельно\n\n"
+        "2. Можно ли совмещать?\n"
+        "— да, график свободный\n\n"
+        "3. Нужен ли опыт?\n"
+        "— нет, обучаем",
+        reply_markup=income_keyboard()
+    )
+    await callback.answer()
+
+@dp.callback_query(lambda c: c.data == "income_recalc")
+async def income_recalc(callback: types.CallbackQuery, state: FSMContext):
+    await callback.message.edit_text(
+        "Какой формат доставки вам подходит?",
+        reply_markup=delivery_keyboard()
+    )
+    await state.set_state(Form.waiting_for_delivery)
+    await callback.answer()
+
 
 # ===============================
 # WEBHOOK
