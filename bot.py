@@ -370,7 +370,7 @@ async def income_bonus(callback: types.CallbackQuery):
         "в течение 10 дней сверх основного дохода.",
         reply_markup=income_keyboard()
     )
-    await callback.answer()
+    await callback.answer()  # 🔹 обязательно
 
 @dp.callback_query(lambda c: c.data == "income_faq")
 async def income_faq(callback: types.CallbackQuery):
@@ -384,7 +384,7 @@ async def income_faq(callback: types.CallbackQuery):
         "— нет, обучаем",
         reply_markup=income_keyboard()
     )
-    await callback.answer()
+    await callback.answer()  # 🔹 обязательно
 
 @dp.callback_query(lambda c: c.data == "income_recalc")
 async def income_recalc(callback: types.CallbackQuery, state: FSMContext):
@@ -393,7 +393,8 @@ async def income_recalc(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=delivery_keyboard()
     )
     await state.set_state(Form.waiting_for_delivery)
-    await callback.answer()
+    await callback.answer()  # 🔹 обязательно
+
 
 
 # ===============================
