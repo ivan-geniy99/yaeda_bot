@@ -92,11 +92,11 @@ def cities_keyboard(cities, page=0, per_page=10):
     nav = []
     if page > 0:
         nav.append(
-            InlineKeyboardButton("⬅ Назад", callback_data=f"cities_page_{page-1}")
+            InlineKeyboardButton(text="⬅ Назад", callback_data=f"cities_page_{page-1}")
         )
     if end < len(cities):
         nav.append(
-            InlineKeyboardButton("➡ Далее", callback_data=f"cities_page_{page+1}")
+            InlineKeyboardButton(text="➡ Далее", callback_data=f"cities_page_{page+1}")
         )
 
     if nav:
@@ -112,12 +112,12 @@ def cities_keyboard(cities, page=0, per_page=10):
 def citizenship_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton("🇷🇺 Россия", callback_data="citizenship_ru")],
-            [InlineKeyboardButton("🇧🇾 Беларусь", callback_data="citizenship_by")],
-            [InlineKeyboardButton("🇰🇿 Казахстан", callback_data="citizenship_kz")],
-            [InlineKeyboardButton("🇦🇲 Армения", callback_data="citizenship_am")],
-            [InlineKeyboardButton("🇰🇬 Кыргызстан", callback_data="citizenship_kg")],
-            [InlineKeyboardButton("Другое", callback_data="citizenship_other")],
+            [InlineKeyboardButton(text="🇷🇺 Россия", callback_data="citizenship_ru")],
+            [InlineKeyboardButton(text="🇧🇾 Беларусь", callback_data="citizenship_by")],
+            [InlineKeyboardButton(text="🇰🇿 Казахстан", callback_data="citizenship_kz")],
+            [InlineKeyboardButton(text="🇦🇲 Армения", callback_data="citizenship_am")],
+            [InlineKeyboardButton(text="🇰🇬 Кыргызстан", callback_data="citizenship_kg")],
+            [InlineKeyboardButton(text="Другое", callback_data="citizenship_other")],
         ]
     )
 
@@ -142,7 +142,7 @@ async def start(message: types.Message, state: FSMContext):
         "Чтобы показать условия и доход — задам несколько коротких вопросов 👌",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
-                [InlineKeyboardButton("Хорошо, поехали✅", callback_data="start_next")]
+                [InlineKeyboardButton(text="Хорошо, поехали✅", callback_data="start_next")]
             ]
         )
     )
@@ -156,8 +156,8 @@ async def age_question(callback: types.CallbackQuery, state: FSMContext):
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [
-                    InlineKeyboardButton("Да✅", callback_data="age_yes"),
-                    InlineKeyboardButton("Нет❌", callback_data="age_no")
+                    InlineKeyboardButton(text="Да✅", callback_data="age_yes"),
+                    InlineKeyboardButton(text="Нет❌", callback_data="age_no")
                 ]
             ]
         )
