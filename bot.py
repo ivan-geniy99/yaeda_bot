@@ -52,6 +52,7 @@ TOP_CITIES = [
 class Form(StatesGroup):
     waiting_for_start = State()
     waiting_for_age = State()
+    waiting_for_underage = State()
     waiting_for_citizenship = State()
     waiting_for_city = State()
     waiting_for_delivery = State()
@@ -77,6 +78,12 @@ def sort_cities(top, all_cities):
     rest = sorted(c for c in all_cities if c not in top_part)
     return top_part + rest
 
+def back_to_start_keyboard():
+    return InlineKeyboardMarkup(
+        inline_keyboard=[
+            [InlineKeyboardButton(text="⬅ Назад", callback_data="back_to_start")]
+        ]
+    )
 
 def cities_keyboard(cities, page=0, per_page=10):
     start = page * per_page
@@ -170,9 +177,10 @@ async def age_question(callback: types.CallbackQuery, state: FSMContext):
 async def age_answer(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == "age_no":
         await callback.message.edit_text(
-            "Если вам есть 16 лет, можно откликнуться по ссылке:\nhttps://example.com"
+            "Если вам есть 16 лет, можно откликнуться по ссылке:\nhttps://example.com",
+            reply_markup=back_to_start_keyboard()
         )
-        await state.clear()
+        await state.set_state(Form.waiting_for_underage)
         await callback.answer()
         return
 
@@ -182,6 +190,23 @@ async def age_answer(callback: types.CallbackQuery, state: FSMContext):
     )
     await state.set_state(Form.waiting_for_citizenship)
     await callback.answer()
+
+@dp.callback_query(Form.waiting_for_underage, lambda c: c.data == "back_to_start")
+async def back_to_start(callback: types.CallbackQuery, state: FSMContext):
+    await state.clear()
+
+    await callback.message.edit_text(
+        "Чтобы показать условия и доход — задам несколько коротких вопросов 👌",
+        reply_markup=InlineKeyboardMarkup(
+            inline_keyboard=[
+                [InlineKeyboardButton(text="Хорошо, поехали✅", callback_data="start_next")]
+            ]
+        )
+    )
+
+    await state.set_state(Form.waiting_for_start)
+    await callback.answer()
+
 
 # ===============================
 # ГРАЖДАНСТВО → ГОРОДА
@@ -294,8 +319,7 @@ async def delivery_chosen(callback: types.CallbackQuery, state: FSMContext):
     payout = "Выплаты: ежедневные" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Выплаты: еженедельные"
     legal = "Оформление через партнёра сервиса — самозанятость" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Оформление по договору через партнёра сервиса"
 
-    await callback.message.edit_reply_markup(reply_markup=None)
-    await callback.message.answer(
+    await callback.message.edit_text(
         f"📍 Доход курьера в городе: {city}\n"
         f"📦 Формат: {DELIVERY_TITLES[delivery]}\n\n"
         f"💰 Средний в день — {rec['day']} ₽\n"
