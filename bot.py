@@ -103,7 +103,7 @@ def cities_keyboard(cities, page=0, per_page=10):
         keyboard.append(nav)
 
     keyboard.append([
-        InlineKeyboardButton("❌ Нет моего города", callback_data="no_city")
+        InlineKeyboardButton(text="❌ Нет моего города", callback_data="no_city")
     ])
 
     return InlineKeyboardMarkup(inline_keyboard=keyboard)
@@ -125,9 +125,9 @@ def citizenship_keyboard():
 def delivery_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
-            [InlineKeyboardButton("🧍 Пешком", callback_data="delivery_foot")],
-            [InlineKeyboardButton("🚲 Вело", callback_data="delivery_bike")],
-            [InlineKeyboardButton("🚗 Авто", callback_data="delivery_car")],
+            [InlineKeyboardButton(text="🧍 Пешком", callback_data="delivery_foot")],
+            [InlineKeyboardButton(text="🚲 Вело", callback_data="delivery_bike")],
+            [InlineKeyboardButton(text="🚗 Авто", callback_data="delivery_car")],
         ]
     )
 
