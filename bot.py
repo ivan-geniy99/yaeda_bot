@@ -313,57 +313,60 @@ async def no_city(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 # ===============================
-# ДОХОД
+# ДОХОД И КНОПКИ
 # ===============================
 
-@dp.callback_query(Form.waiting_for_delivery)
-async def delivery_chosen(callback: types.CallbackQuery, state: FSMContext):
-    delivery_map = {
-        "delivery_foot": "foot",
-        "delivery_bike": "bike",
-        "delivery_car": "car",
-    }
+# 🔹 Заменяем оба старых коллбэка delivery_chosen и income_buttons этим
+@dp.callback_query(lambda c: c.data.startswith("delivery_") or c.data in ["income_bonus", "income_faq", "income_recalc"])
+async def income_flow(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
 
-    delivery = delivery_map.get(callback.data)
-    if not delivery:
+    # Если выбрали формат доставки
+    if callback.data.startswith("delivery_"):
+        delivery_map = {
+            "delivery_foot": "foot",
+            "delivery_bike": "bike",
+            "delivery_car": "car",
+        }
+        delivery = delivery_map.get(callback.data)
+        if not delivery:
+            await callback.answer()
+            return
+
+        city = data["city"]
+        citizenship = data["citizenship"]
+
+        records = get_average_income()
+        rec = next((r for r in records if r["city"] == city and r["delivery"] == delivery), None)
+
+        if not rec:
+            await callback.message.answer("Нет данных по выбранному формату 😔")
+            await state.clear()
+            return
+
+        payout = "Выплаты: ежедневные" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Выплаты: еженедельно"
+        legal = "Оформление через партнёра сервиса — самозанятость" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Оформление по договору через партнёра сервиса"
+
+        text = (
+            f"📍 Доход курьера в городе: {city}\n"
+            f"📦 Формат: {DELIVERY_TITLES[delivery]}\n\n"
+            f"💰 Средний в день — {rec['day']} ₽\n"
+            f"💰 Средний в месяц — {rec['month_avg']} ₽\n"
+            f"💰 Максимум в месяц — {rec['month_max']} ₽\n\n"
+            f"{payout}\n"
+            f"{legal}"
+        )
+
+        # 🔹 Показываем доход с клавиатурой бонусов/FAQ/расчёта
+        await callback.message.edit_text(
+            text,
+            reply_markup=income_keyboard()
+        )
+        await state.set_state(Form.waiting_for_delivery)
         await callback.answer()
         return
 
-    data = await state.get_data()
-    city = data["city"]
-    citizenship = data["citizenship"]
-
-    records = get_average_income()
-    rec = next(
-        (r for r in records if r["city"] == city and r["delivery"] == delivery),
-        None
-    )
-
-    if not rec:
-        await callback.message.answer("Нет данных по выбранному формату 😔")
-        await state.clear()
-        return
-
-    payout = "Выплаты: ежедневные" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Выплаты: еженедельные"
-    legal = "Оформление через партнёра сервиса — самозанятость" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Оформление по договору через партнёра сервиса"
-
-    text = (
-        f"📍 Доход курьера в городе: {city}\n"
-        f"📦 Формат: {DELIVERY_TITLES[delivery]}\n\n"
-        f"💰 Средний в день — {rec['day']} ₽\n"
-        f"💰 Средний в месяц — {rec['month_avg']} ₽\n"
-        f"💰 Максимум в месяц — {rec['month_max']} ₽\n\n"
-        f"{payout}\n"
-        f"{legal}"
-    )
-
-    await callback.message.edit_text(
-        text,
-        reply_markup=income_keyboard()
-)
-
-@dp.callback_query(lambda c: c.data in ["income_bonus", "income_faq", "income_recalc"])
-async def income_buttons(callback: types.CallbackQuery, state: FSMContext):
+    # Если нажали кнопки после расчёта
     if callback.data == "income_bonus":
         await callback.message.edit_text(
             "🎁 Бонусы для курьеров\n\nБонус 10 000 ₽ за первые 35 заказов\nв течение 10 дней сверх основного дохода.",
@@ -380,8 +383,9 @@ async def income_buttons(callback: types.CallbackQuery, state: FSMContext):
             reply_markup=delivery_keyboard()
         )
         await state.set_state(Form.waiting_for_delivery)
-    
+
     await callback.answer()
+
 
 # ===============================
 # WEBHOOK
