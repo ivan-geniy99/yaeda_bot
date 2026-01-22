@@ -93,8 +93,8 @@ def income_keyboard():
     return InlineKeyboardMarkup(
         inline_keyboard=[
             [InlineKeyboardButton(
-                text="📝 Оставить заявку",
-                url="https://example.com/apply"  # ссылка-рыба
+                text="📝 Откликнуться",
+                url="https://advgo.ru/qqhg6a"
             )],
             [
                 InlineKeyboardButton(
@@ -220,7 +220,11 @@ async def age_question(callback: types.CallbackQuery, state: FSMContext):
 async def age_answer(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == "age_no":
         await callback.message.edit_text(
-            "Если вам есть 16 лет, можно откликнуться по ссылке:\nhttps://example.com",
+            "Если тебе есть 16 лет, ты можешь работать курьером в некоторых городах:\n"
+            "<b>Нижний Новгород, Самара, Ростов-на-Дону, Челябинск, Тверь, Сургут, Тюмень, Астрахань, Владивосток, Томск, Иваново, Сочи, Ставрополь, Ижевск, Калуга, Липецк, Барнаул, Сергиев Посад, Нижнекамск, Красноярск, Воронеж, Екатеринбург, Казань, Новороссийск, Тула, Набережные Челны, Ульяновск, Москва+МО, Санкт-Петербург+ЛО</b>\n\n"
+            "Для оформления потребуется <b>свидетельство о рождении</b> и <b>согласие родителей</b>.\n\n"
+            "📩 Подать отклик и рассчитать доход можно здесь: <a href='https://advgo.ru/qqhg6a'>ссылка</a>.",
+            parse_mode="HTML",
             reply_markup=back_to_age_keyboard()
         )
         await state.set_state(Form.waiting_for_underage)
@@ -372,15 +376,14 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
         # 🔹 Цепляющая фраза про бонус, только если город в списке
         bonus_text = ""
         if city in bonus_cities:
-            bonus_text = "🎁 Новым курьерам в этом городе: 10 000 ₽ сверху за первые 35 заказов!\n\n"
+            bonus_text = "🎁 Новым курьерам в этом городе: 10 000 ₽ сверху за первые 35 заказов! Спешите, этот бонус ограничен по времени🔥🔥🔥\n\n"
         text = (
-            f"📍 Город: {city}\n"
-            f"📦 Формат: {DELIVERY_TITLES[delivery]}\n\n"
+            f"📍 Город: {city}\n\n"
             f"{bonus_text}"  # 🔹 вставляем бонус
-            f"💵 Доход курьера:\n"
+            f"💵 Доход курьера ({DELIVERY_TITLES[delivery]}, средний):\n"
             f"• В день: {day_income} ₽\n"
             f"• В месяц: {month_avg_income} ₽\n"
-            f"• Макс/мес: {month_max_income} ₽\n\n"
+            f"• Максимум в месяц: {month_max_income} ₽\n\n"
             f"{payout}\n"
             f"{legal}"
         )
@@ -397,12 +400,39 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
     # Если нажали кнопки после расчёта
     if callback.data == "income_bonus":
         await callback.message.edit_text(
-            "🎁 Бонусы для курьеров\n\nБонус 10 000 ₽ за первые 35 заказов\nв течение 10 дней сверх основного дохода.",
+            "🎁 <b>Бонусы для курьеров</b>\n\n"
+            "• Яндекс Байк за 1 ₽\n"
+            "• Комбо-обед за 95 ₽\n"
+            "• Скидка 20% в Яндекс Лавке\n"
+            "• Яндекс Плюс в подарок\n"
+            "• 100% чаевых ваши\n"
+            "• Промокод на Еду 300 ₽\n"
+            "• Скидка 10% в Ленте\n"
+            "• Бери Заряд бесплатно\n"
+            "• Юридическая поддержка",
+            parse_mode="HTML",
             reply_markup=income_keyboard()
         )
     elif callback.data == "income_faq":
         await callback.message.edit_text(
-            "❓ Частые вопросы\n\n1. Как часто выплаты?\n— ежедневно или еженедельно\n2. Можно ли совмещать?\n— да, график свободный\n3. Нужен ли опыт?\n— нет, обучаем",
+            "❓ <b>Частые вопросы</b>\n\n"
+            "• 🏫 <b>Нет опыта?</b>\n"
+            "Не переживайте, обучение предоставляется. Освоиться быстро!\n\n"
+            "• ⏰ <b>Какой график?</b>\n"
+            "Свободный режим: сами выбираете удобные слоты.\n\n"
+            "• 💪 <b>Физически тяжело?</b>\n"
+            "Лёгкие доставки, выбираете заказы по силам.\n\n"
+            "• 📍 <b>Сложно ориентироваться?</b>\n"
+            "Есть удобное навигационное приложение.\n\n"
+            "• 🚶‍♂️ <b>Нет транспорта?</b>\n"
+            "Можно пешком, на вело или общественном транспорте.\n\n"
+            "• 🛡️ <b>Безопасно?</b>\n"
+            "Страхование и поддержка на маршруте гарантируют безопасность.\n\n"
+            "• 📱 <b>Какой телефон нужен?</b>\n"
+            "Android ≥ 7.0 или iOS ≥ 13.0.\n\n"
+            "• 📝 <b>Документы?</b>\n"
+            "Соберите их в течение 14 дней после регистрации.",
+            parse_mode="HTML",
             reply_markup=income_keyboard()
         )
     elif callback.data == "income_recalc":
