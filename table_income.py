@@ -5,48 +5,77 @@ import threading
 import time
 import base64
 import os
+import logging
 
-b64_key = os.environ.get("GOOGLE_CRED_JSON_IN_BASE_64")
-print(b64_key)
-decoded_json = base64.b64decode(b64_key).decode("utf-8")
-key_dict = json.loads(decoded_json)
+logger = logging.getLogger(__name__)
 
-# ✅ Добавляем нужные права
-scopes = [
-    "https://www.googleapis.com/auth/spreadsheets.readonly",
-    "https://www.googleapis.com/auth/drive.readonly"
-]
-
-# Авторизация
-creds = Credentials.from_service_account_info(key_dict, scopes=scopes) 
-client = gspread.authorize(creds)
 
 # === 6. КЭШ ===
 average_income_ya_eda = []
+_init_started = False
+_init_lock = threading.Lock()
+_data_lock = threading.Lock()
+
+def init_income_service():
+    global _init_started
+    # 🔒 защита от повторного запуска
+    with _init_lock:
+        if _init_started:
+            return
+        _init_started = True
+
+        #b64_key = os.environ.get("GOOGLE_CRED_JSON_IN_BASE_64")
+        #decoded_json = base64.b64decode(b64_key).decode("utf-8")
+        #key_dict = json.loads(decoded_json)
+        # ⬇️ дальше БЕЗ lock
+        decoded_json = base64.b64decode(
+            os.environ["GOOGLE_CRED_JSON_IN_BASE_64"]
+        ).decode("utf-8")
+        key_dict = json.loads(decoded_json)
+
+        # ✅ Добавляем нужные права
+        scopes = [
+            "https://www.googleapis.com/auth/spreadsheets.readonly",
+            "https://www.googleapis.com/auth/drive.readonly"
+        ]
+
+        # Авторизация
+        creds = Credentials.from_service_account_info(key_dict, scopes=scopes) 
+        client = gspread.authorize(creds)
+
+        # Функция обновления данных
+        def update_income():
+            nonlocal client
+            try:
+                sheet = client.open("average_income_ya_eda").sheet1
+                records = sheet.get_all_records()
+                
+                with _data_lock:
+                    average_income_ya_eda.clear()
+                    average_income_ya_eda.extend(records)
+
+                logger.info(
+                "Income cache updated: %d records",
+                len(records)
+                )
+            except Exception:
+                logger.exception("Failed to update income cache")
+                
+        # Первоначальный запрос при старте
+        update_income()
+
+        def loop():
+            while True:
+                time.sleep(900)
+                update_income()
+
+        threading.Thread(target=loop, daemon=True, name="income-cache-updater").start()
+
 def get_average_income():
-    return average_income_ya_eda
+    if not _init_started:
+        init_income_service()  # 🔒 безопасно, т.к. есть lock
+    # 🔒 возвращаем копию
+    with _data_lock:
+        return list(average_income_ya_eda)
 
-# Функция обновления данных
-def update_income():
-    global average_income_ya_eda
-    try:
-        sheet = client.open("average_income_ya_eda").sheet1
-        average_income_ya_eda = sheet.get_all_records()
-        print(f"[INFO] Income cache updated: {len(average_income_ya_eda)} records")
-    except Exception as e:
-        print(f"[ERROR] Failed to update income: {e}")
 
-# Первоначальный запрос при старте
-update_income()
-
-# Фоновый поток для обновления каждые 5 минут
-def start_auto_update(interval_sec=300):
-    def loop():
-        while True:
-            update_income()
-            time.sleep(interval_sec)
-    thread = threading.Thread(target=loop, daemon=True)
-    thread.start()
-
-# Запускаем автообновление при импорте
-start_auto_update()
