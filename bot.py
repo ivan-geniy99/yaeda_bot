@@ -103,7 +103,7 @@ def income_keyboard():
         inline_keyboard=[
             [InlineKeyboardButton(
                 text="📝 Откликнуться",
-                url="https://reg.eda.yandex.ru/?advertisement_campaign=forms_for_agents&user_invite_code=4fd8c46d41724e86a4448b0367951ddb&utm_content=blank"
+                callback_data="send_lead"
             )],
             [
                 InlineKeyboardButton(
@@ -402,6 +402,14 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
         day_income = f"{int(rec['day']):,}".replace(",", " ")
         month_avg_income = f"{int(rec['month_avg']):,}".replace(",", " ")
         month_max_income = f"{int(rec['month_max']):,}".replace(",", " ")
+
+        # 🔹 СОХРАНЯЕМ В FSM (ВОТ ЭТО ДОБАВЛЯЕМ 👇)
+        await state.update_data(
+            delivery=DELIVERY_TITLES[delivery],
+            day_income=day_income,
+            month_avg=month_avg_income,
+            month_max=month_max_income
+        )
 
         # 🔹 Цепляющая фраза про бонус, только если город в списке
         bonus_text = ""
