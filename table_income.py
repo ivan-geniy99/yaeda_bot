@@ -6,7 +6,7 @@ import time
 import base64
 import os
 import logging
-
+from google_client import get_google_client
 logger = logging.getLogger(__name__)
 
 
@@ -40,8 +40,7 @@ def init_income_service():
         ]
 
         # Авторизация
-        creds = Credentials.from_service_account_info(key_dict, scopes=scopes) 
-        client = gspread.authorize(creds)
+        client = get_google_client(scopes)
 
         # Функция обновления данных
         def update_income():

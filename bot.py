@@ -7,6 +7,7 @@ from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import uvicorn
+from table_leads import save_lead
 
 from table_income import get_average_income
 
@@ -340,6 +341,27 @@ async def no_city(callback: types.CallbackQuery, state: FSMContext):
     )
     await state.clear()
     await callback.answer()
+
+@dp.callback_query(lambda c: c.data == "send_lead")
+async def send_lead(callback: types.CallbackQuery, state: FSMContext):
+    data = await state.get_data()
+    user = callback.from_user
+
+    save_lead({
+        **data,
+        "user_id": user.id,
+        "username": user.username
+    })
+
+    await callback.message.edit_text(
+        "✅ <b>Благодарим за отклик.</b>\n\n"
+        "Ожидайте, вскоре рекрутер свяжется с вами в этом чате.",
+        parse_mode="HTML"
+    )
+
+    await state.clear()
+    await callback.answer()
+
 
 # ===============================
 # ДОХОД И КНОПКИ
