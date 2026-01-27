@@ -11,6 +11,11 @@ from table_leads import save_lead
 
 from table_income import get_average_income
 
+# ===============================
+# НАСТРОЙКИ ЗАГЛУШКИ
+# ===============================
+USE_PLACEHOLDER = True  # True = показываем заглушку, False = обычный сценарий
+PLACEHOLDER_USERNAME = "@iadugar"  # ваш юзернейм для заглушки
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_URL = os.environ["WEBHOOK_URL"]
@@ -197,6 +202,16 @@ def delivery_keyboard():
 
 @dp.message(CommandStart())
 async def start(message: types.Message, state: FSMContext):
+
+    if USE_PLACEHOLDER:
+        await message.answer(
+            f"По вопросам устройства на работу пишите мне: {PLACEHOLDER_USERNAME}"
+        )
+        await state.clear()  # убираем любые старые состояния
+        return  # выходим, не запускаем обычный сценарий
+
+    # обычный сценарий, если заглушка отключена
+
     await message.answer(
         "Узнайте, какие возможности есть для курьеров в вашем городе — всего 3 быстрых вопроса 👌",
         reply_markup=InlineKeyboardMarkup(
