@@ -14,7 +14,7 @@ from table_income import get_average_income
 # ===============================
 # НАСТРОЙКИ ЗАГЛУШКИ
 # ===============================
-USE_PLACEHOLDER = False  # True = показываем заглушку, False = обычный сценарий
+USE_PLACEHOLDER = True  # True = показываем заглушку, False = обычный сценарий
 PLACEHOLDER_USERNAME = "@iadugar"  # ваш юзернейм для заглушки
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
