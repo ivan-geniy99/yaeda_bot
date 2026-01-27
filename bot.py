@@ -353,8 +353,8 @@ async def send_lead(callback: types.CallbackQuery, state: FSMContext):
     })
 
     await callback.message.edit_text(
-        "✅ <b>Благодарим за отклик.</b>\n\n"
-        "Ожидайте, вскоре рекрутер свяжется с вами в этом чате.",
+        "➡️ Следующий шаг — проверка данных и мини-обучение по работе с заказами.\n"
+        "Чтобы начать, пожалуйста, заполните анкету по ссылке:\nhttps://reg.eda.yandex.ru/?advertisement_campaign=forms_for_agents&user_invite_code=4fd8c46d41724e86a4448b0367951ddb&utm_content=blank",
         parse_mode="HTML"
     )
 
