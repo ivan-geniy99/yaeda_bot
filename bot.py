@@ -353,8 +353,10 @@ async def send_lead(callback: types.CallbackQuery, state: FSMContext):
     })
 
     await callback.message.edit_text(
-        "➡️ Следующий шаг — проверка данных и мини-обучение по работе с заказами.\n"
-        "Чтобы начать, пожалуйста, заполните анкету по ссылке:\nhttps://reg.eda.yandex.ru/?advertisement_campaign=forms_for_agents&user_invite_code=4fd8c46d41724e86a4448b0367951ddb&utm_content=blank",
+        "Двигаемся дальше 😊\n\n"
+        "➡️ Следующий шаг — короткая анкета и мини-обучение по работе с заказами.\n"
+        "Ничего сложного, обычно занимает 15 минут.\n"
+        "Готовы? Тогда начнём здесь 👇\nhttps://reg.eda.yandex.ru/?advertisement_campaign=forms_for_agents&user_invite_code=4fd8c46d41724e86a4448b0367951ddb&utm_content=blank",
         parse_mode="HTML"
     )
 
