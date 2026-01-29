@@ -213,7 +213,7 @@ async def start(message: types.Message, state: FSMContext):
     # обычный сценарий, если заглушка отключена
 
     await message.answer(
-        "Узнайте, какие возможности есть для курьеров в вашем городе — всего 3 быстрых вопроса 👌",
+        "Узнайте, какие возможности есть для курьеров в вашем городе — всего 3 быстрых вопроса",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
                 [InlineKeyboardButton(text="Хочу узнать✅", callback_data="start_next")]
@@ -430,7 +430,7 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
         # 🔹 Цепляющая фраза про бонус, только если город в списке
         bonus_text = ""
         if city in bonus_cities:
-            bonus_text = "🎁 Новым курьерам в этом городе: 10 000 ₽ сверху за первые 35 заказов! Спешите, этот бонус ограничен по времени🔥🔥🔥\n\n"
+            bonus_text = "🎁 Новым курьерам в этом городе: 10 000 ₽ сверху за первые 35 заказов! Спешите, этот бонус ограничен по времени\n\n"
         doc_text = DOCUMENTS_BY_CITIZENSHIP.get(citizenship)
         text = (
             f"📍 Город: {city}\n\n"
