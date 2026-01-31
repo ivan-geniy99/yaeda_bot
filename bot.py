@@ -8,7 +8,7 @@ from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
 import uvicorn
 from table_leads import save_lead
-
+from datetime import datetime, timezone, timedelta
 from table_income import get_average_income
 
 # ===============================
@@ -430,7 +430,14 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
         # 🔹 Цепляющая фраза про бонус, только если город в списке
         bonus_text = ""
         if city in bonus_cities:
-            bonus_text = "🎁 Новым курьерам в этом городе: 10 000 ₽ сверху за первые 35 заказов! Спешите, этот бонус ограничен по времени\n\n"
+            # Московское время (UTC+3)
+            moscow_time = datetime.now(timezone.utc) + timedelta(hours=3)
+            print(f"Московское время{moscow_time}")
+            # Дата и время конца акции: 31 января 19:00
+            bonus_deadline = datetime(2026, 1, 31, 19, 0, 0, tzinfo=timezone(timedelta(hours=3)))
+            print(f"Дэдлайн{bonus_deadline}")
+            if moscow_time < bonus_deadline:
+                bonus_text = "🎁 Новым курьерам в этом городе: 10 000 ₽ сверху за первые 35 заказов! Спешите, этот бонус ограничен по времени\n\n"
         doc_text = DOCUMENTS_BY_CITIZENSHIP.get(citizenship)
         text = (
             f"📍 Город: {city}\n\n"
