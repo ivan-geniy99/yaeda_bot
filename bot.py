@@ -431,11 +431,11 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
         bonus_text = ""
         if city in bonus_cities:
             # Московское время (UTC+3)
-            moscow_time = datetime.now(timezone.utc) + timedelta(hours=3)
-            print(f"Московское время{moscow_time}")
-            # Дата и время конца акции: 31 января 19:00
-            bonus_deadline = datetime(2026, 1, 31, 19, 0, 0, tzinfo=timezone(timedelta(hours=3)))
-            print(f"Дэдлайн{bonus_deadline}")
+            moscow_tz = timezone(timedelta(hours=3))
+            moscow_time = datetime.now(moscow_tz)
+            bonus_deadline = datetime(2026, 1, 31, 19, 0, 0, tzinfo=moscow_tz)
+            print(f"Московское время {moscow_time}")
+            print(f"Дэдлайн {bonus_deadline}")
             if moscow_time < bonus_deadline:
                 bonus_text = "🎁 Новым курьерам в этом городе: 10 000 ₽ сверху за первые 35 заказов! Спешите, этот бонус ограничен по времени\n\n"
         doc_text = DOCUMENTS_BY_CITIZENSHIP.get(citizenship)
