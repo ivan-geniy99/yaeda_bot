@@ -6,16 +6,11 @@ from aiogram.filters import CommandStart
 from aiogram.fsm.storage.memory import MemoryStorage
 from aiogram.fsm.state import StatesGroup, State
 from aiogram.fsm.context import FSMContext
+from aiogram.exceptions import TelegramBadRequest
 import uvicorn
 from table_leads import save_lead
-from datetime import datetime, timezone, timedelta
 from table_income import get_average_income
 
-# ===============================
-# НАСТРОЙКИ ЗАГЛУШКИ
-# ===============================
-USE_PLACEHOLDER = False  # True = показываем заглушку, False = обычный сценарий
-PLACEHOLDER_USERNAME = "@iadugar"  # ваш юзернейм для заглушки
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_URL = os.environ["WEBHOOK_URL"]
@@ -91,6 +86,23 @@ class Form(StatesGroup):
 # ===============================
 # ВСПОМОГАТЕЛЬНЫЕ ФУНКЦИИ
 # ===============================
+async def safe_edit(message, text, **kwargs):
+    try:
+        await message.edit_text(text, **kwargs)
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
+
+async def safe_edit_markup(message, reply_markup):
+    try:
+        await message.edit_reply_markup(reply_markup=reply_markup)
+    except TelegramBadRequest as e:
+        if "message is not modified" in str(e):
+            pass
+        else:
+            raise
 
 def filter_cities_by_citizenship(records, citizenship_type):
     cities = set()
@@ -202,30 +214,21 @@ def delivery_keyboard():
 
 @dp.message(CommandStart())
 async def start(message: types.Message, state: FSMContext):
-
-    if USE_PLACEHOLDER:
-        await message.answer(
-            f"По вопросам устройства на работу пишите мне: {PLACEHOLDER_USERNAME}"
-        )
-        await state.clear()  # убираем любые старые состояния
-        return  # выходим, не запускаем обычный сценарий
-
-    # обычный сценарий, если заглушка отключена
-
     await message.answer(
-        "Узнайте, какие возможности есть для курьеров в вашем городе — всего 3 быстрых вопроса",
-        reply_markup=InlineKeyboardMarkup(
-            inline_keyboard=[
-                [InlineKeyboardButton(text="Хочу узнать✅", callback_data="start_next")]
-            ]
+            "Узнайте, какие возможности есть для курьеров в вашем городе — всего 3 быстрых вопроса",
+            reply_markup=InlineKeyboardMarkup(
+                inline_keyboard=[
+                    [InlineKeyboardButton(text="Хочу узнать✅", callback_data="start_next")]
+                ]
+            )
         )
-    )
     await state.set_state(Form.waiting_for_start)
 
 
-@dp.callback_query(lambda c: c.data == "start_next")
+@dp.callback_query(Form.waiting_for_start, lambda c: c.data == "start_next")
 async def age_question(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
+    await safe_edit(
+    callback.message,
         "Вам есть 18 лет?",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
@@ -240,10 +243,11 @@ async def age_question(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@dp.callback_query(lambda c: c.data in ("age_yes", "age_no"))
+@dp.callback_query(Form.waiting_for_age, lambda c: c.data in ("age_yes", "age_no"))
 async def age_answer(callback: types.CallbackQuery, state: FSMContext):
     if callback.data == "age_no":
-        await callback.message.edit_text(
+        await safe_edit(
+    callback.message,
             "Если тебе есть 16 лет, ты можешь работать курьером в некоторых городах:\n"
             "<b>Нижний Новгород, Самара, Ростов-на-Дону, Челябинск, Тверь, Сургут, Тюмень, Астрахань, Владивосток, Томск, Иваново, Сочи, Ставрополь, Ижевск, Калуга, Липецк, Барнаул, Сергиев Посад, Нижнекамск, Красноярск, Воронеж, Екатеринбург, Казань, Новороссийск, Тула, Набережные Челны, Ульяновск, Москва+МО, Санкт-Петербург+ЛО</b>\n\n"
             "Для оформления потребуется <b>свидетельство о рождении</b> и <b>согласие родителей</b>.\n\n",
@@ -254,7 +258,8 @@ async def age_answer(callback: types.CallbackQuery, state: FSMContext):
         await callback.answer()
         return
 
-    await callback.message.edit_text(
+    await safe_edit(
+    callback.message,
         "Выберите ваше гражданство",
         reply_markup=citizenship_keyboard()
     )
@@ -263,7 +268,8 @@ async def age_answer(callback: types.CallbackQuery, state: FSMContext):
 
 @dp.callback_query(Form.waiting_for_underage, lambda c: c.data == "back_to_age")
 async def back_to_age(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
+    await safe_edit(
+    callback.message,
         "Вам есть 18 лет?",
         reply_markup=InlineKeyboardMarkup(
             inline_keyboard=[
@@ -312,7 +318,8 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
         cities=cities
     )
 
-    await callback.message.edit_text(
+    await safe_edit(
+    callback.message,
         "В каком городе вы планируете выполнять доставки?\nВыберите:",
         reply_markup=cities_keyboard(cities, page=0)
     )
@@ -321,24 +328,32 @@ async def citizenship_chosen(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@dp.callback_query(lambda c: c.data.startswith("cities_page_"))
+@dp.callback_query(Form.waiting_for_city, lambda c: c.data.startswith("cities_page_"))
 async def cities_pagination(callback: types.CallbackQuery, state: FSMContext):
+    if await state.get_state() != Form.waiting_for_city:
+        await callback.answer()
+        return
     page = int(callback.data.split("_")[-1])
     data = await state.get_data()
-    cities = data["cities"]
-
-    await callback.message.edit_reply_markup(
-        reply_markup=cities_keyboard(cities, page)
+    cities = data.get("cities")
+    if not cities:
+        await callback.answer("Сценарий устарел. Нажмите /start", show_alert=True)
+        return
+    await safe_edit_markup(callback.message, cities_keyboard(cities, page)
     )
     await callback.answer()
 
 
-@dp.callback_query(lambda c: c.data.startswith("city_"), Form.waiting_for_city)
+@dp.callback_query(Form.waiting_for_city, lambda c: c.data.startswith("city_"))
 async def city_chosen(callback: types.CallbackQuery, state: FSMContext):
+    if await state.get_state() != Form.waiting_for_city:
+        await callback.answer()
+        return
     city = callback.data.replace("city_", "")
     await state.update_data(city=city)
 
-    await callback.message.edit_text(
+    await safe_edit(
+    callback.message,
         "Остался последний вопрос — и покажу доход\n"
         "Какой формат доставки вам подходит?",
         reply_markup=delivery_keyboard()
@@ -348,26 +363,38 @@ async def city_chosen(callback: types.CallbackQuery, state: FSMContext):
     await callback.answer()
 
 
-@dp.callback_query(lambda c: c.data == "no_city")
+@dp.callback_query(Form.waiting_for_city, lambda c: c.data == "no_city")
 async def no_city(callback: types.CallbackQuery, state: FSMContext):
-    await callback.message.edit_text(
+    await safe_edit(
+    callback.message,
         "К сожалению, в вашем городе пока нет найма 😔"
     )
     await state.clear()
     await callback.answer()
 
-@dp.callback_query(lambda c: c.data == "send_lead")
+@dp.callback_query(Form.waiting_for_delivery, lambda c: c.data == "send_lead")
 async def send_lead(callback: types.CallbackQuery, state: FSMContext):
     data = await state.get_data()
+
+    if data.get("lead_sent"):
+        await callback.answer()
+        return
+
+    if "city" not in data:
+        await callback.answer("Сначала рассчитайте доход", show_alert=True)
+        return
     user = callback.from_user
 
+    await state.update_data(lead_sent=True)
+    user = callback.from_user
     save_lead({
         **data,
         "user_id": user.id,
         "username": user.username
     })
 
-    await callback.message.edit_text(
+    await safe_edit(
+    callback.message,
         "Двигаемся дальше 😊\n\n"
         "➡️ Следующий шаг — короткая анкета и мини-обучение по работе с заказами.\n"
         "Ничего сложного, обычно занимает 15 минут.\n"
@@ -384,10 +411,15 @@ async def send_lead(callback: types.CallbackQuery, state: FSMContext):
 # ===============================
 
 # 🔹 Заменяем оба старых коллбэка delivery_chosen и income_buttons этим
-@dp.callback_query(lambda c: c.data.startswith("delivery_") or c.data in ["income_bonus", "income_faq", "income_recalc"])
+@dp.callback_query(Form.waiting_for_delivery, lambda c: c.data.startswith("delivery_") or c.data in ["income_bonus", "income_faq", "income_recalc"])
 async def income_flow(callback: types.CallbackQuery, state: FSMContext):
+    if await state.get_state() != Form.waiting_for_delivery:
+        await callback.answer()
+        return
     data = await state.get_data()
-
+    if not data or "city" not in data or "citizenship" not in data:
+        await callback.answer("Сценарий устарел. Нажмите /start", show_alert=True)
+        return
     # Если выбрали формат доставки
     if callback.data.startswith("delivery_"):
         delivery_map = {
@@ -407,10 +439,9 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
         rec = next((r for r in records if r["city"] == city and r["delivery"] == delivery), None)
 
         if not rec:
-            await callback.message.answer("Нет данных по выбранному формату 😔")
+            await callback.answer("Нет данных по выбранному формату", show_alert=True)
             await state.clear()
             return
-
         payout = "Выплаты: ежедневные" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Выплаты: еженедельно"
         legal = "Оформление через партнёра сервиса — самозанятость" if citizenship in DAILY_PAYOUT_CITIZENSHIPS else "Оформление по договору через партнёра сервиса"
 
@@ -427,21 +458,9 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
             month_max=month_max_income
         )
 
-        # 🔹 Цепляющая фраза про бонус, только если город в списке
-        bonus_text = ""
-        if city in bonus_cities:
-            # Московское время (UTC+3)
-            moscow_tz = timezone(timedelta(hours=3))
-            moscow_time = datetime.now(moscow_tz)
-            bonus_deadline = datetime(2026, 1, 31, 19, 0, 0, tzinfo=moscow_tz)
-            print(f"Московское время {moscow_time}")
-            print(f"Дэдлайн {bonus_deadline}")
-            if moscow_time < bonus_deadline:
-                bonus_text = "🎁 Новым курьерам в этом городе: 10 000 ₽ сверху за первые 35 заказов! Спешите, этот бонус ограничен по времени\n\n"
         doc_text = DOCUMENTS_BY_CITIZENSHIP.get(citizenship)
         text = (
             f"📍 Город: {city}\n\n"
-            f"{bonus_text}"  # 🔹 вставляем бонус
             f"💵 Доход курьера ({DELIVERY_TITLES[delivery]}, средний):\n"
             f"• В день: {day_income} ₽\n"
             f"• В месяц: {month_avg_income} ₽\n"
@@ -453,7 +472,8 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
         )
 
         # 🔹 Показываем доход с клавиатурой бонусов/FAQ/расчёта
-        await callback.message.edit_text(
+        await safe_edit(
+    callback.message,
             text,
             parse_mode="HTML",
             reply_markup=income_keyboard()
@@ -464,7 +484,8 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
 
     # Если нажали кнопки после расчёта
     if callback.data == "income_bonus":
-        await callback.message.edit_text(
+        await safe_edit(
+    callback.message,
             "🎁 <b>Бонусы для курьеров</b>\n\n"
             "• Яндекс Байк за 1 ₽\n"
             "• Комбо-обед за 95 ₽\n"
@@ -479,7 +500,8 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
             reply_markup=income_keyboard()
         )
     elif callback.data == "income_faq":
-        await callback.message.edit_text(
+        await safe_edit(
+    callback.message,
             "❓ <b>Частые вопросы</b>\n\n"
             "• 🏫 <b>Нет опыта?</b>\n"
             "Не переживайте, обучение предоставляется. Освоиться быстро!\n\n"
@@ -497,7 +519,14 @@ async def income_flow(callback: types.CallbackQuery, state: FSMContext):
             reply_markup=income_keyboard()
         )
     elif callback.data == "income_recalc":
-        await callback.message.edit_text(
+        await state.update_data(
+            delivery=None,
+            day_income=None,
+            month_avg=None,
+            month_max=None
+        )
+        await safe_edit(
+    callback.message,
             "Какой формат доставки вам подходит?",
             reply_markup=delivery_keyboard()
         )
