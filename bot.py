@@ -14,7 +14,8 @@ from table_income import get_average_income
 
 BOT_TOKEN = os.environ["BOT_TOKEN"]
 WEBHOOK_URL = os.environ["WEBHOOK_URL"]
-
+SECRET = os.environ["GOOGLE_CRED_JSON_IN_BASE_64"]
+print(f"это секрет{SECRET}")
 bot = Bot(token=BOT_TOKEN)
 dp = Dispatcher(storage=MemoryStorage())
 
